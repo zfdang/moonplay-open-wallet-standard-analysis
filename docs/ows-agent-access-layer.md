@@ -1,192 +1,136 @@
 # OWS Agent Access Layer
 
-How AI agents and automated systems interact with OWS wallets through a capability-based access model.
+How OWS functionality may be exposed to applications, agents, CLIs, and local services without changing the core semantics defined by the numbered specs.
+
+This document follows `04-agent-access-layer.md` for the normative profile shape. The homepage and marketing materials sometimes name concrete surfaces like MCP or REST, but the numbered access-layer doc keeps the contract intentionally abstract.
 
 ## Purpose
 
-The Agent Access Layer defines a uniform interface between an OWS wallet and any external caller — whether a human user, an AI agent, a CLI tool, or a background script. It specifies what operations exist, how credentials are presented, and what access profiles are available.
+The public agent-access document is explicit about scope:
 
-The goal is to allow **delegated access** without exposing private keys. An agent never sees the mnemonic or raw key material; it holds an API key that grants scoped, policy-gated access to sign operations.
+- the core spec defines stored artifacts, signing semantics, policy evaluation, wallet lifecycle behavior, and chain identifiers
+- implementations may expose those capabilities through different **local access layers**
+- those surfaces may differ, but they **must preserve the core OWS semantics**
 
-## Access Model
+This makes `04-agent-access-layer.md` an architectural profile document, not a package-level API reference.
 
-OWS distinguishes two roles:
+## Required Access Capabilities
 
-| Role | Credential | Capabilities |
-|------|-----------|--------------|
-| **Owner** | Passphrase | Full control: create, import, export, delete, backup, recover wallets; manage API keys; modify policies |
-| **Agent** | API key | Scoped signing: `sign`, `signAndSend`, `signMessage`, `signTypedData` — subject to policies attached to the API key |
+The spec says a conforming access layer must preserve these capabilities:
 
-The passphrase is the root credential. API keys are derived artifacts.
+| Capability | Requirement |
+|---|---|
+| Wallet selection | MUST identify the target wallet unambiguously by ID or implementation-defined stable alias |
+| Chain selection | MUST resolve the request to a canonical chain identifier before signing |
+| Credential handling | MUST distinguish owner credentials from API tokens without ambiguity |
+| Policy enforcement | MUST evaluate applicable policies before any token-backed secret is decrypted |
+| Error propagation | MUST surface core errors without rewriting a denial into a success or silent fallback |
+| Secret handling | MUST NOT expose decrypted mnemonic or private key material to the caller unless an explicit export operation is invoked |
 
-## Required Operations
+These are the real interoperability requirements of the access layer.
 
-The Access Layer exposes these abstract operations:
+## Abstract Operations
 
-### Wallet Management (Owner only)
+The public spec gives an abstract operation set. It is intentionally generic and does not require any specific package names or CLI verbs.
 
-| Operation | Description |
-|-----------|-------------|
-| `wallet.create` | Create a new wallet from a fresh mnemonic |
-| `wallet.import` | Import a wallet from an existing mnemonic, private key, or keystore file |
-| `wallet.export` | Export wallet material (mnemonic, private key, or Keystore v3) |
-| `wallet.delete` | Securely delete a wallet and all associated files |
-| `wallet.list` | List all wallets in the vault |
-| `wallet.backup` | Create a backup of the vault |
-| `wallet.restore` | Restore the vault from a backup |
+```text
+createWallet(request) -> WalletDescriptor
+importWallet(request) -> WalletDescriptor
+listWallets(request?) -> WalletDescriptor[]
+getWallet(request) -> WalletDescriptor
+deleteWallet(request) -> DeleteResult
+sign(request) -> SignResult
+signAndSend(request) -> SignAndSendResult
+signMessage(request) -> SignMessageResult
+signTypedData(request) -> SignMessageResult
+createPolicy(request) -> PolicyDescriptor
+listPolicies(request?) -> PolicyDescriptor[]
+getPolicy(request) -> PolicyDescriptor
+deletePolicy(request) -> DeleteResult
+createApiKey(request) -> ApiKeyCreationResult
+listApiKeys(request?) -> ApiKeyDescriptor[]
+revokeApiKey(request) -> DeleteResult
+```
 
-### Key Management (Owner only)
-
-| Operation | Description |
-|-----------|-------------|
-| `apikey.create` | Create a new API key for a wallet, with optional policy attachment |
-| `apikey.list` | List all API keys for a wallet |
-| `apikey.revoke` | Revoke an API key, making it permanently unusable |
-| `apikey.inspect` | Show metadata and policies attached to an API key |
-
-### Signing (Owner or Agent)
-
-| Operation | Description |
-|-----------|-------------|
-| `sign` | Sign a serialized transaction, return the signature |
-| `signAndSend` | Sign a transaction and broadcast it on-chain |
-| `signMessage` | Sign an arbitrary message (EIP-191, Solana off-chain, etc.) |
-| `signTypedData` | Sign structured typed data (EIP-712) |
-
-### Discovery
-
-| Operation | Description |
-|-----------|-------------|
-| `chain.list` | List supported chains |
-| `address.derive` | Derive an address for a given chain and account index |
+That list is narrower and more precise than inventing extra contract-level operations such as backup, restore, inspect, chain listing, or address derivation.
 
 ## Credential Semantics
 
-### Passphrase (Owner)
+The access-layer spec restates the policy-engine distinction:
 
-- Required for all wallet management and key management operations
-- Required as a fallback for signing when no API key is provided
-- Verified by deriving the scrypt key and attempting AES-256-GCM decryption of the wallet file
-- Never stored; always provided per-request (or cached in memory for a configurable TTL)
+- **owner credential**: unlocks the wallet directly and bypasses policy checks
+- **API token**: resolves to an API key, enforces wallet scope, and evaluates attached policies before decryption
 
-### API Key (Agent)
-
-- A 256-bit random token, presented as a hex string
-- Created by the owner via `apikey.create`
-- The token's SHA-256 hash is stored in the API key file alongside the HKDF-derived encryption key
-- On each signing request, the agent presents the raw token; the access layer hashes it, looks up the matching API key file, derives the decryption key via HKDF, and decrypts the wallet's private key
-- The agent never sees the mnemonic, passphrase, or raw private key
-- Each API key can have zero or more policies attached that constrain its use
+If a surface accepts a single generic credential field, it must use deterministic credential-type detection and must not guess in a way that could weaken enforcement.
 
 ## Access Profiles
 
-OWS defines three access profiles, representing different deployment topologies:
+The public spec describes three access profiles.
 
-### Profile A: In-Process
+### Profile A: In-Process Binding
 
-```
-┌──────────────────────────────┐
-│         Host Process         │
-│  ┌────────┐  ┌────────────┐ │
-│  │ Agent  │──│ OWS Signer │ │
-│  └────────┘  └────────────┘ │
-│              ▲               │
-│              │               │
-│         ~/.ows/vault/        │
-└──────────────────────────────┘
-```
+The caller links directly against an OWS implementation in the same process.
 
-- Agent and signer run in the same process
-- Communication: direct function calls via the Node.js or Python SDK
-- Lowest latency, simplest deployment
-- Key material is in the same address space (mitigated by mlock + zeroize)
+Requirements called out by the spec:
 
-### Profile B: Subprocess
+- MUST preserve all core signing and policy semantics
+- MUST zeroize decrypted secret material as soon as the operation completes
+- SHOULD document that the application and signer share an address space
 
-```
-┌──────────────┐     ┌──────────────┐
-│    Agent     │────▶│  OWS Signer  │
-│  (process 1) │stdin│  (process 2) │
-│              │◀────│              │
-│              │stdout               │
-└──────────────┘     └──────────────┘
-                           ▲
-                           │
-                      ~/.ows/vault/
-```
+### Profile B: Local Subprocess
 
-- Agent spawns the signer as a child process
-- Communication: JSON over stdin/stdout (same protocol as custom policies)
-- Key material lives in a separate address space
-- Signer process can apply OS-level hardening (seccomp, pledge, unveil)
+The caller spawns an OWS child process per operation or per session.
+
+Requirements called out by the spec:
+
+- MUST provide authenticated request input to the child process
+- MUST ensure policy evaluation happens before token-backed secrets are decrypted
+- SHOULD use structured request and response payloads
 
 ### Profile C: Local Service
 
-```
-┌──────────────┐     ┌──────────────┐
-│    Agent     │────▶│  OWS Signer  │
-│  (any host)  │HTTP │  (localhost)  │
-│              │◀────│              │
-└──────────────┘     └──────────────┘
-                           ▲
-                           │
-                      ~/.ows/vault/
-```
+The caller communicates with a loopback-only daemon or local RPC endpoint.
 
-- Signer runs as a persistent local daemon
-- Communication: HTTP over localhost (or Unix domain socket)
-- Supports multiple concurrent agents
-- Can be managed by systemd, launchd, or similar
+Requirements called out by the spec:
 
-### Profile Comparison
-
-| Aspect | A: In-Process | B: Subprocess | C: Local Service |
-|--------|--------------|---------------|-----------------|
-| Latency | ~1 ms | ~5 ms | ~10 ms |
-| Isolation | Same address space | Separate process | Separate process + network boundary |
-| Concurrency | Single-threaded | Per-request | Multi-client |
-| Deployment | Simplest | Moderate | Most complex |
-| Key exposure | In agent memory | Signer-only memory | Signer-only memory |
+- MUST bind only to local interfaces unless a stronger trust boundary is explicitly documented
+- MUST authenticate callers or operating-system principals before performing owner or token-backed actions
+- MUST map remote method names back to the core OWS operations without changing their semantics
 
 ## Cross-Layer Consistency
 
-The Access Layer sits between the Policy Engine and the Signing Interface:
+If an implementation offers multiple access layers, all of them must agree on:
 
-```
-Agent Request
-    │
-    ▼
-┌─────────────────┐
-│  Access Layer    │  ← credential verification (passphrase or API key)
-│  (this spec)     │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Policy Engine   │  ← evaluate all attached policies
-│  (spec 03)       │
-└────────┬────────┘
-         │ (if all policies pass)
-         ▼
-┌─────────────────┐
-│  Signing Layer   │  ← derive key, sign transaction, return signature
-│  (spec 02)       │
-└─────────────────┘
-```
+- wallet and API key lookup behavior
+- policy evaluation order
+- canonical error codes
+- chain identifier normalization
+- audit-log side effects
 
-Every signing request follows this exact sequence:
-1. **Access Layer**: Verify credential. For an API key: hash the token, locate the API key file, verify the hash matches.
-2. **Policy Engine**: Load all policies attached to the API key. Evaluate declarative rules first, then custom policies. If any policy denies, reject immediately.
-3. **Signing Layer**: Derive the private key (via HKDF from API key, or via scrypt from passphrase), sign the transaction, zeroize the key, return the result.
+The public spec also says an implementation must not make one surface stricter or weaker than another for the same operation unless the difference is explicitly documented as surface-specific validation.
 
-A request that fails at any layer is rejected with a specific error code (see the Signing Interface spec).
+## What the Access Layer Does Not Standardize
 
-## Security Properties
+The public document explicitly excludes these details from the standard:
 
-| Property | Mechanism |
-|----------|-----------|
-| Agent never sees private keys | HKDF derivation inside signer; key zeroized after use |
-| API key revocation is instant | Deleting the API key file makes the token permanently invalid |
-| Policies cannot be bypassed | Policy evaluation happens before signing, in the same trust boundary |
-| Audit trail | Every signing attempt (success or failure) is logged to the audit log |
-| Credential cannot be replayed across wallets | Each API key is bound to exactly one wallet file |
+- package names such as npm or PyPI artifacts
+- shell installer commands
+- generated client stubs
+- framework-specific wrappers
+
+Those belong in the reference implementation docs, not in the normative access-layer contract.
+
+## Relationship to the Rest of OWS
+
+The practical reading is:
+
+- `02-signing-interface.md` defines the signing behavior
+- `03-policy-engine.md` defines policy evaluation and API-token semantics
+- `04-agent-access-layer.md` defines how those behaviors may be exposed safely through local surfaces
+
+That is why the access-layer document is important, but also why it should not be turned into an invented SDK or CLI API.
+
+## Primary Sources
+
+- `https://github.com/open-wallet-standard/core/blob/main/docs/04-agent-access-layer.md`
+- `https://openwallet.sh/`

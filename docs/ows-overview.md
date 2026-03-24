@@ -2,102 +2,113 @@
 
 ## What OWS Is
 
-The Open Wallet Standard (OWS) is an open specification for local wallet storage, delegated agent access, and policy-gated signing. It defines how cryptographic wallets are created, stored on a local filesystem, and accessed by AI agents and CLI tools through a unified interface.
+The public OWS docs describe OWS as an open standard for:
 
-OWS was created by **MoonPay** and launched on **March 23, 2026** as v1.0.0. It is the wallet layer for MoonPay's agent economy initiative ("MoonPay Agents").
+- local wallet storage
+- delegated agent access
+- policy-gated signing
 
-The core idea: every CLI tool, AI agent, and automation script currently invents its own key management — env vars with raw private keys, proprietary cloud APIs, bespoke keystore formats. OWS replaces this fragmentation with a single open standard.
+The OWS homepage frames the problem as fragmented local key management across CLIs, agents, and scripts, and presents OWS as a shared local storage and signing standard rather than a hosted wallet API.
+
+The safest summary is:
+
+- OWS standardizes local wallet artifacts and signing behavior
+- OWS is designed for agents, CLIs, and other local tools
+- OWS is multi-chain and uses CAIP identifiers across the spec
+
+## What Can Be Stated Safely About Ownership And Release
+
+The public OWS pages reviewed here clearly show **v1.0.0** and a public GitHub repo, but they do not need an authorship claim to explain the standard.
+
+The public MoonPay agents page separately states that **MoonPay Agents implements the Open Wallet Standard**, which establishes a product relationship. This repository therefore avoids stronger statements like "MoonPay created OWS" unless a primary OWS source says so directly.
 
 ## Core Design Principles
 
-OWS is built around six guiding principles:
+The OWS homepage presents six principles:
 
-### 1. Local-First
+### 1. Local-first
 
-Keys live in `~/.ows/` — not in a browser extension, not in the cloud, not scattered across tool-specific config directories. Everything operates on the local filesystem.
+Keys live in `~/.ows/` rather than in cloud custody or tool-specific directories.
 
-### 2. No API Calls
+### 2. No API calls
 
-No HTTP. No vendor lock-in. No authentication flows. No rate limits. OWS runs entirely on the user's machine. The signing core is an in-process library, not a remote service.
+The homepage describes OWS as running entirely on the local machine, without HTTP or vendor-auth flows in the core wallet path.
 
-### 3. Multi-Chain by Default
+### 3. Multi-chain by default
 
-One wallet, every chain. A single BIP-39 mnemonic derives accounts for BTC, ETH, SOL, ATOM, TON, TRON, SUI, Spark, Filecoin — all via standard BIP-44 derivation paths. Chain-agnostic identifiers (CAIP-2 / CAIP-10) are used throughout.
+One wallet derives accounts across the supported chain families from a single seed.
 
-### 4. Self-Custody
+### 4. Self-custody
 
-Your keys. Your device. No remote signing. No custodians. No third-party access. The mnemonic is encrypted at rest with AES-256-GCM and never leaves the local vault.
+The user controls the keys and device. The model is explicitly non-custodial.
 
-### 5. Zero-Trust Agent Access
+### 5. Zero-trust agent access
 
-Agents never see plaintext keys. Instead, they authenticate with scoped API tokens (`ows_key_...`). The token serves as both an authentication credential and decryption capability. Policies are enforced before any key material is touched.
+Agents authenticate with scoped API tokens instead of seeing plaintext keys.
 
 ### 6. Composable
 
-Works with any tool that speaks JSON. CLI, MCP, SDK, REST — same wallet, same security model. A wallet created by one tool works in every other conforming implementation.
+The homepage presents the same wallet and security model across CLI, SDK, MCP, and REST-style access surfaces.
 
 ## The Problem OWS Solves
 
-Today, every tool reinvents the wallet:
+The homepage contrasts today's fragmented local-wallet patterns with the OWS vault:
 
-| Tool | Key Location | Encryption |
-|------|-------------|------------|
-| Foundry | `~/.foundry/keystores/` | Keystore v3 |
-| Hardhat | `.env PRIVATE_KEY=0xab3f...` | None (plaintext) |
-| Solana CLI | `~/.config/solana/id.json` | None (plaintext JSON) |
-| Agent X | `.env.local SIGNER=0x91c...` | None (plaintext) |
-| Custom bot | `./config/wallet.json` | Varies |
-| Shell history | `export PRIVATE_KEY=0x...` | None (plaintext) |
+| Example | Public homepage example |
+|---|---|
+| Foundry | `~/.foundry/keystores/` |
+| Hardhat | `.env PRIVATE_KEY=...` |
+| Solana CLI | `~/.config/solana/id.json` |
+| Custom agent or bot | env vars or local JSON files |
+| Shell history | `export PRIVATE_KEY=...` |
 
-This is **6 formats, 6 locations, 0 encryption** in many cases.
+The homepage's punchline is the move from many tool-specific locations and plaintext-key patterns to a single encrypted local vault.
 
-With OWS: **1 vault (`~/.ows/`), 1 interface, AES-256-GCM encrypted**.
+## Relationship To MoonPay Agents
 
-## Who OWS Is For
+The MoonPay agents page says:
 
-- **AI agent developers** who need their agents to sign transactions without exposing private keys
-- **CLI tool builders** who want a shared, encrypted wallet that works across tools
-- **Protocol developers** who need a standardized local signing interface
-- **dApp developers** who want to give agents scoped, policy-controlled wallet access
+> MoonPay Agents implements the Open Wallet Standard
 
-## Relationship to MoonPay Agents
+MoonPay's newsroom and Help Center describe MoonPay Agents as a non-custodial software layer built around MoonPay CLI. Those public MoonPay sources also describe MoonPay CLI as exposing wallets, swaps, bridges, deposits, fiat on/off-ramps, MCP access, and x402-related flows.
 
-MoonPay Agents is MoonPay's product line for the "agent economy." It includes:
+The important boundary is:
 
-- The MoonPay CLI (`npm i -g @moonpay/cli`)
-- A skill library (30+ skills for wallet management, token trading, cross-chain bridges, prediction markets, etc.)
-- MCP server integration
-- Integration with Claude, Cursor, Windsurf, Codex, and 40+ other AI agents
+- OWS defines the open wallet standard
+- MoonPay Agents is one public product that says it implements that standard
+- MoonPay product docs should not be treated as proof of the exact OWS reference-implementation storage layout or packaging
 
-OWS is the **wallet layer** that MoonPay Agents implements. The announcement states: "MoonPay Agents implements the Open Wallet Standard — an open standard for agent-to-wallet communication."
+## Ecosystem Signals On The Homepage
 
-However, OWS is intentionally separate from MoonPay as a product. It is MIT-licensed and designed to be adopted by any tool or framework.
+The OWS homepage displays logos from a broad set of networks and ecosystem companies, including PayPal, Ripple, OKX, Arbitrum, TRON, Solana Foundation, Base, Circle, Ethereum Foundation, Polygon, Sui, Filecoin Foundation, LayerZero, DFNS, and others.
 
-## Ecosystem Participants
-
-At launch, the OWS website lists logos and partnerships with:
-
-**Blockchain Foundations & Networks:** PayPal, Ripple, OKX, Arbitrum, TRON, Solana Foundation, Base, Circle, Ethereum Foundation, Polygon, Sui, Filecoin Foundation, TON (The Open Network Foundation)
-
-**Infrastructure & Protocols:** LayerZero, Virtual Protocol, Uniblock, DFlow, DFNS, Dynamic, Allium, Simmer
+The safe interpretation is that the homepage is signaling ecosystem relevance and intended reach. The logo wall alone is **not** a precise technical claim about implementation status, conformance, or formal partnership terms.
 
 ## Inspired By
 
-OWS explicitly draws from:
+The homepage explicitly lists these prior-art influences:
 
-| Project | What OWS Borrowed |
-|---------|-------------------|
-| x402 | Spec structure, scheme/network/transport separation |
-| Privy | Policy engine design, key sharding concepts, CAIP-2 chain identifiers |
-| Coinbase AgentKit | ActionProvider/WalletProvider pattern, MCP tool exposure |
-| Keystore v3 | Proven encrypted storage format since 2015 |
-| CAIP Standards | Chain-agnostic identifiers for chains, accounts, and methods |
-| ERC-4337 | Session keys, programmable validation, paymaster sponsorship |
-| Turnkey | TEE-based signing, sub-100ms latency targets |
-| W3C Universal Wallet | lock/unlock/import/export interface patterns |
-| Solana Wallet Standard | Feature-based capability registration |
-| Crossmint | Dual-key model, on-chain policy enforcement |
-| Lit Protocol | Decentralized key management, IPFS-published policies |
-| WalletConnect v2 | Session authorization model, relay architecture |
+| Project | Publicly stated influence |
+|---|---|
+| x402 | Spec structure, scheme/network/transport separation, contribution templates |
+| Privy | Policy engine design, key sharding concepts, CAIP-2 identifiers |
+| Coinbase AgentKit | ActionProvider / WalletProvider pattern, MCP tool exposure |
+| Keystore v3 | Encrypted storage format precedent |
+| CAIP standards | Chain, account, and method identifiers |
+| ERC-4337 | Session keys and programmable validation ideas |
+| Turnkey | TEE-based signing inspiration |
+| W3C Universal Wallet | Lock / unlock / import / export interface patterns |
+| Solana Wallet Standard | Capability-registration ideas |
+| Crossmint | Dual-key and policy concepts |
+| Lit Protocol | Decentralized key-management ideas |
+| WalletConnect v2 | Session authorization and relay concepts |
 
-OWS states: "No new primitives. OWS doesn't invent new cryptography or chain-specific abstractions. It implements existing standards in a composable, agent-friendly way."
+The homepage also says OWS is not inventing new cryptographic primitives; it is presenting a composable, agent-friendly packaging of existing standards.
+
+## Primary Sources
+
+- `https://openwallet.sh/`
+- `https://docs.openwallet.sh/`
+- `https://github.com/open-wallet-standard/core`
+- `https://www.moonpay.com/agents`
+- `https://www.moonpay.com/it/newsroom/moonpay-agents`

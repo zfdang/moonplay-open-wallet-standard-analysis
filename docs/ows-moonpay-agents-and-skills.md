@@ -1,232 +1,158 @@
-# MoonPay Agents and Skills Ecosystem
+# MoonPay Agents And Skills Ecosystem
 
-How MoonPay implements the Open Wallet Standard to build an AI-native crypto agent platform.
+How MoonPay publicly positions OWS inside MoonPay Agents, MoonPay CLI, MCP, and the published MoonPay skill surface.
+
+## What The Public Sources Establish
+
+From MoonPay's agents page, Help Center articles, newsroom post, and GitHub org page, the directly supported points are:
+
+- MoonPay Agents publicly says it **implements the Open Wallet Standard**
+- MoonPay Agents is described as a **non-custodial software layer**
+- MoonPay distributes the CLI package `@moonpay/cli`
+- MoonPay CLI can run as a local MCP server via `mp mcp`
+- MoonPay's Help Center describes MoonPay Agents as exposing **54 crypto-specific tools across 17 skills**
+- the MoonPay GitHub org publicly includes a `moonpay/skills` repository
 
 ## MoonPay Agents
 
-MoonPay Agents is MoonPay's product line that implements OWS. Announced alongside the OWS launch on March 23, 2026, it provides:
+The agents landing page presents MoonPay Agents as:
 
-1. **A non-custodial wallet** built on OWS — local key storage, AES-256-GCM encryption, policy-gated signing
-2. **A skills framework** — modular, composable capabilities that agents can invoke
-3. **MCP integration** — Model Context Protocol server that exposes skills to AI tools like Claude Desktop, Cursor, Windsurf, and others
-4. **On/off-ramp access** — buy and sell crypto with fiat through MoonPay's existing infrastructure
+- terminal-first
+- authenticated
+- wallet-enabled
+- ready to transact
 
-The core thesis: AI agents need wallets, and those wallets should be open, local, and policy-constrained — not custodial black boxes.
+The public marketing page says:
 
-## Architecture
+> MoonPay Agents implements the Open Wallet Standard
 
-```
-┌─────────────────────────────────────────────┐
-│            AI Agent (Claude, GPT, etc.)      │
-└──────────────────┬──────────────────────────┘
-                   │ MCP Protocol
-                   ▼
-┌─────────────────────────────────────────────┐
-│            MoonPay MCP Server                │
-│  ┌────────────────────────────────────────┐ │
-│  │              Skills Layer               │ │
-│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ │ │
-│  │  │ Swap │ │ Send │ │Quote │ │ NFT  │ │ │
-│  │  └──────┘ └──────┘ └──────┘ └──────┘ │ │
-│  └────────────────────────────────────────┘ │
-│  ┌────────────────────────────────────────┐ │
-│  │            OWS Runtime                  │ │
-│  │  wallet · signer · policy · apikey     │ │
-│  └────────────────────────────────────────┘ │
-└─────────────────────────────────────────────┘
-                   │
-                   ▼
-              ~/.ows/vault/
-```
+The newsroom launch post says MoonPay Agents was published on **February 24, 2026** and describes it as a non-custodial software layer that gives AI agents access to wallets, funds, and autonomous transaction capability through MoonPay CLI.
 
-## Skills Library
+One public-source nuance is worth keeping in mind:
 
-Skills are the building blocks of MoonPay Agents. Each skill:
-- Has a well-defined input/output schema
-- Is independently versioned
-- Can be composed with other skills
-- Is exposed as an MCP tool
+- the landing page markets "20+ skills"
+- the Help Center article explicitly enumerates **17 skills / 54 tools**
 
-The skills are maintained in the public repository [github.com/moonpay/skills](https://github.com/moonpay/skills).
+This repository follows the Help Center article when it needs exact counts or names.
 
-### Core Skills
+## MoonPay CLI
 
-| Skill | Description |
-|-------|-------------|
-| `wallet_create` | Create a new OWS wallet |
-| `wallet_import` | Import an existing wallet |
-| `wallet_export` | Export wallet material |
-| `wallet_list` | List all wallets |
-| `wallet_delete` | Delete a wallet |
-| `address_derive` | Derive addresses for supported chains |
-| `apikey_create` | Create an API key with policies |
-| `apikey_revoke` | Revoke an API key |
-| `sign` | Sign a transaction |
-| `sign_and_send` | Sign and broadcast a transaction |
-| `sign_message` | Sign an arbitrary message |
-| `sign_typed_data` | Sign EIP-712 typed data |
+MoonPay Help Center describes MoonPay CLI as offering:
 
-### Trading & Markets
+- non-custodial local wallets
+- swaps, bridges, and transfers
+- market data
+- fiat on/off-ramp flows
+- virtual accounts
+- x402-related flows
 
-| Skill | Description |
-|-------|-------------|
-| `swap` | Swap one token for another (cross-chain supported) |
-| `send` | Send tokens to an address |
-| `bridge` | Bridge tokens between chains |
-| `quote` | Get a price quote for a swap or bridge |
-| `price` | Get token prices |
-| `portfolio` | View portfolio balances across chains |
-| `token_info` | Get detailed token information |
-| `gas_estimate` | Estimate gas costs for a transaction |
+Publicly documented access surfaces are:
 
-### On/Off-Ramp (MoonPay-specific)
+- CLI: `mp`
+- MCP server: `mp mcp`
+- REST API
+- web chat
 
-| Skill | Description |
-|-------|-------------|
-| `buy` | Buy crypto with fiat via MoonPay |
-| `sell` | Sell crypto for fiat via MoonPay |
-| `onramp_quote` | Get a buy quote |
-| `offramp_quote` | Get a sell quote |
-| `payment_methods` | List available payment methods |
+## Supported Chains In MoonPay CLI
 
-### Research & Analytics
+MoonPay Help Center currently lists:
 
-| Skill | Description |
-|-------|-------------|
-| `chain_info` | Get information about a blockchain |
-| `tx_status` | Check transaction status |
-| `tx_history` | View transaction history for an address |
-| `contract_read` | Read from a smart contract |
-| `ens_resolve` | Resolve ENS names to addresses |
-| `nft_list` | List NFTs owned by an address |
-| `nft_metadata` | Get NFT metadata |
+- Solana
+- Ethereum
+- Base
+- Polygon
+- Arbitrum
+- Optimism
+- BNB
+- Avalanche
+- TRON
+- Bitcoin
 
-### x402 Payments
+That is MoonPay product behavior, not the OWS reference-chain matrix.
 
-| Skill | Description |
-|-------|-------------|
-| `pay_request` | Make a payment via the x402 protocol |
-| `pay_discover` | Discover available merchants and endpoints via Bazaar directory |
+## Published MoonPay Skill Names
 
-## MCP Integration
+MoonPay Help Center explicitly lists these 17 skills:
 
-MoonPay Agents uses the [Model Context Protocol](https://modelcontextprotocol.io/) to expose skills to AI agents.
+- `moonpay-auth`
+- `moonpay-block-explorer`
+- `moonpay-buy-crypto`
+- `moonpay-check-wallet`
+- `moonpay-deposit`
+- `moonpay-export-data`
+- `moonpay-feedback`
+- `moonpay-fund-polymarket`
+- `moonpay-mcp`
+- `moonpay-missions`
+- `moonpay-price-alerts`
+- `moonpay-swap-tokens`
+- `moonpay-trading-automation`
+- `moonpay-upgrade`
+- `moonpay-virtual-account`
+- `moonpay-x402`
+- `moonpay-discover-tokens`
 
-### Starting the MCP Server
+The same Help Center material also says these 17 skills expose **54 tools** in total.
 
-```bash
-# Via MoonPay CLI
-moonpay mcp start
+## GitHub Presence
 
-# The server exposes all available skills as MCP tools
-# Default: stdio transport (for Claude Desktop, Cursor)
-# Optional: --transport sse --port 3001 (for HTTP-based clients)
-```
+The MoonPay GitHub org page shows a public `skills` repository and describes it as:
 
-### Claude Desktop Configuration
+- "Skills for AI agents to move money — on-ramps, swaps, wallets, deposits, and more via the MoonPay CLI"
 
-```json
-{
-  "mcpServers": {
-    "moonpay": {
-      "command": "moonpay",
-      "args": ["mcp", "start"]
-    }
-  }
-}
-```
+That is enough to describe the repo's public role. This repository no longer relies on unverified path-level claims inside that repo.
 
-### Cursor Configuration
+## MCP And Client Integration
 
-```json
-{
-  "mcpServers": {
-    "moonpay": {
-      "command": "moonpay",
-      "args": ["mcp", "start"]
-    }
-  }
-}
-```
+MoonPay's MCP setup article documents `mp mcp` and shows configuration examples for:
 
-### Example Interaction
+- Claude Code
+- Claude Desktop
+- OpenClaw
 
-User says to Claude: "Swap 0.1 ETH for USDC on Base"
+MoonPay's Help Center also mentions install shortcuts for:
 
-Claude invokes the `swap` skill:
+- Claude
+- ChatGPT
+- Gemini
+- Grok
 
-```json
-{
-  "tool": "swap",
-  "arguments": {
-    "fromToken": "eip155:8453:native",
-    "toToken": "eip155:8453:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "amount": "0.1",
-    "walletId": "default"
-  }
-}
-```
+The important distinction is:
 
-The skill:
-1. Gets a quote from a DEX aggregator
-2. Constructs the swap transaction
-3. Calls OWS `signAndSend` with the agent's API key
-4. Policy engine evaluates the request (is `eip155:8453` allowed? Is the amount within limits?)
-5. If approved, signs and broadcasts the transaction
-6. Returns the transaction hash to Claude
+- those are MoonPay product integration docs
+- they do not redefine the OWS standard itself
 
-## Agent Security Model
+## Security And Storage Boundary
 
-MoonPay Agents inherits OWS security properties:
+MoonPay Help Center says MoonPay CLI uses local HD wallets with **OS keychain encryption** and that keys never leave the machine.
 
-| Concern | Mitigation |
-|---------|-----------|
-| Agent spends too much | Attach spending-limit policies to the API key |
-| Agent uses wrong chain | Attach `allowed_chains` policy to restrict to specific networks |
-| API key stolen | Revoke via `ows apikey revoke`; delete the API key file |
-| Agent sees private keys | Never — keys are derived inside the signer and zeroized after use |
-| Malicious skill | Skills don't have direct key access; all signing goes through the OWS policy engine |
-| Session expiry | Set `expires_at` on the API key |
+That should be kept distinct from the public OWS reference docs, which describe:
 
-## OWS Skills Directory
+- a `~/.ows/` vault
+- AES-256-GCM envelopes
+- scrypt / HKDF-based local artifact formats
 
-The `skills/ows/` directory inside the `open-wallet-standard/core` repo contains OWS-native skills that any implementation can use. These are distinct from MoonPay-specific skills:
+The safe synthesis is:
 
-```
-skills/ows/
-├── wallet_create.ts
-├── wallet_import.ts
-├── wallet_list.ts
-├── address_derive.ts
-├── sign.ts
-├── sign_and_send.ts
-├── sign_message.ts
-├── sign_typed_data.ts
-├── apikey_create.ts
-├── apikey_revoke.ts
-└── index.ts
-```
+- MoonPay positions its product as non-custodial and OWS-based
+- MoonPay product docs are not proof that MoonPay uses the exact same file layout or packaging as the public OWS reference implementation
 
-These skills follow a standard interface:
-```typescript
-interface Skill {
-  name: string;
-  description: string;
-  inputSchema: JSONSchema;
-  outputSchema: JSONSchema;
-  execute(input: unknown): Promise<unknown>;
-}
-```
+## Relationship Between OWS And MoonPay
 
-## Relationship Between OWS and MoonPay
+| Topic | OWS | MoonPay Agents / CLI |
+|---|---|---|
+| Nature | Open wallet standard | MoonPay product and integration surface |
+| Public source type | Spec docs, README, reference-implementation docs | Agents page, Help Center, newsroom, GitHub org |
+| Scope | Storage, signing, policy, lifecycle, chains, conformance | Wallet UX, MCP, swaps, deposits, fiat, x402, skills |
+| Storage description | `~/.ows/` local vault | local wallets with OS keychain encryption |
+| Standard status | defines interoperability expectations | one public implementation / product layer |
 
-| Aspect | OWS | MoonPay Agents |
-|--------|-----|----------------|
-| Governance | Open standard, MIT license | MoonPay product |
-| Scope | Wallet spec + signing + policies | Full agent platform |
-| Skills | Core wallet skills only | Core + trading + on/off-ramp + research |
-| On/Off-ramp | Not included | MoonPay fiat <→ crypto |
-| MCP server | Reference implementation | Production implementation |
-| Commercial | Free, open source | Freemium (MoonPay API keys for ramp services) |
+## Primary Sources
 
-OWS is the open standard; MoonPay Agents is MoonPay's flagship implementation that adds commercial services on top.
+- `https://www.moonpay.com/agents`
+- `https://support.moonpay.com/en/articles/586487-moonpay-agents-fund-your-ai`
+- `https://support.moonpay.com/en/articles/586583-moonpay-cli-for-ai-agents`
+- `https://support.moonpay.com/en/articles/592667-connect-moonpay-to-any-mcp-compatible-ai`
+- `https://support.moonpay.com/en/articles/592627-openclaw-moonpay-cli-setup-guide`
+- `https://www.moonpay.com/it/newsroom/moonpay-agents`
+- `https://github.com/moonpay`

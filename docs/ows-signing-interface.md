@@ -2,9 +2,18 @@
 
 The core operations exposed by an OWS implementation: signing, sending, and message signing.
 
+This document follows the detailed numbered `02-signing-interface.md`. The public overview page uses a higher-level request shape, but the numbered doc is the safer authority for interface details.
+
 ## Interface Definition
 
 OWS defines four signing operations. All follow the same pre-signing flow: authenticate the caller, resolve the chain, evaluate policies (for agent mode), decrypt key material, sign, wipe key material, and return only the signature.
+
+Public-source note:
+
+- the docs overview page shows a higher-level `transaction` object and extra flags such as `simulate`
+- the numbered signing-interface doc currently defines the detailed request around `transactionHex`
+
+This file follows the numbered doc when those differ.
 
 ### `sign(request: SignRequest): Promise<SignResult>`
 
@@ -54,6 +63,7 @@ An implementation that exposes `signAndSend`:
 - MUST perform the same authentication and policy checks as `sign`
 - MUST return a stable transaction identifier when the broadcast succeeds
 - MUST fail clearly if the target transport is unavailable or unsupported
+- MAY expose richer transport metadata, but the stable contract is still "sign, send, return a transaction identifier or fail clearly"
 
 ### `signMessage(request: SignMessageRequest): Promise<SignMessageResult>`
 
@@ -118,6 +128,8 @@ Example typed data:
 
 Returns a `SignMessageResult`. Only supported for EVM chains.
 
+The public Node and Python SDK docs add one implementation detail that matters operationally: current typed-data signing support is documented for **owner-mode credentials**. API-token typed-data signing is not yet documented as supported in the SDK docs.
+
 ## Serialized Transaction Format
 
 Current OWS implementations accept already-serialized transaction bytes encoded as hex. OWS signs those bytes — it does not construct or encode transactions itself. `signAndSend` implementations submit the signed payload using the transport required by the target chain.
@@ -141,5 +153,7 @@ Current implementations do not provide a per-wallet nonce manager or explicit sa
 
 ## References
 
+- `https://github.com/open-wallet-standard/core/blob/main/docs/02-signing-interface.md`
+- `https://docs.openwallet.sh/`
 - [EIP-191: Signed Data Standard](https://eips.ethereum.org/EIPS/eip-191)
 - [EIP-712: Typed Structured Data](https://eips.ethereum.org/EIPS/eip-712)

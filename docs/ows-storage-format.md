@@ -4,6 +4,8 @@ The storage format is the core of the OWS standard. It defines how wallets, API 
 
 OWS extends the Ethereum Keystore v3 format with multi-chain support, API keys, and stronger encryption defaults.
 
+The numbered storage doc treats conformance here very concretely: an implementation conforms by correctly reading and writing these artifacts and by preserving the documented semantics around encryption, IDs, permissions, and compatibility.
+
 ## Vault Directory Structure
 
 ```
@@ -152,7 +154,8 @@ The `crypto` object follows Keystore v3 conventions with two upgrades:
 | `cipher` | string | `aes-256-gcm` (recommended) or `aes-128-ctr` (v3 compat) |
 | `cipherparams.iv` | string | Hex-encoded initialization vector |
 | `ciphertext` | string | Hex-encoded encrypted key material |
-| `auth_tag` | string | Hex-encoded GCM auth tag (only for aes-256-gcm) |
+| `auth_tag` | string | Hex-encoded GCM auth tag (only for `aes-256-gcm`) |
+| `mac` | string | Keystore-v3-style MAC field for `aes-128-ctr` compatibility envelopes |
 | `kdf` | string | `scrypt`, `hkdf-sha256`, or `pbkdf2` |
 | `kdfparams` | object | KDF-specific parameters |
 
@@ -206,13 +209,24 @@ Audited operations: `create_wallet`, `import_wallet`, `export_wallet`, `broadcas
 
 The audit log is **append-only**. Implementations MUST NOT allow deletion or modification of existing entries. Log rotation is permitted (e.g., monthly archives).
 
+The public conformance doc narrows the minimum useful fields further: audit records should include operation type, wallet identifier, chain identifier, timestamp, allow / deny outcome, and API key identifier when applicable, but must not include raw secrets.
+
 ## Backward Compatibility
 
 - Any valid Ethereum Keystore v3 file can be imported into an OWS vault
 - Exported OWS wallets with `cipher: "aes-128-ctr"` and `key_type: "private_key"` are valid Keystore v3 files (minus the OWS envelope fields, which are ignored by v3 parsers)
 
+The public storage doc is explicit that compatibility is directional and procedural:
+
+1. read v3 JSON
+2. decrypt using the source wallet's rules
+3. re-wrap in the OWS envelope
+4. preserve OWS semantics after import
+
 ## References
 
+- `https://github.com/open-wallet-standard/core/blob/main/docs/01-storage-format.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/08-conformance-and-security.md`
 - [Ethereum Web3 Secret Storage Definition](https://ethereum.org/developers/docs/data-structures-and-encoding/web3-secret-storage)
 - [ERC-2335: BLS12-381 Keystore](https://eips.ethereum.org/EIPS/eip-2335)
 - [BIP-39: Mnemonic Seed Phrases](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)

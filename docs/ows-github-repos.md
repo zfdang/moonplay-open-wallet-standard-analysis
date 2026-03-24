@@ -1,191 +1,156 @@
 # OWS GitHub Repositories
 
-Guide to the public repositories, their structure, and how they relate.
+What is publicly visible today in the OWS and MoonPay GitHub surface, and what this repository deliberately avoids claiming without a directly accessible source.
 
-## Repository Map
+## Primary OWS Repository
 
-```
-open-wallet-standard/             ← GitHub organization
-└── core                          ← Main repository (Rust + bindings + specs)
-       168 ★  18 🍴  9 contributors  53 releases
-       Rust 86.1% | TypeScript 10.2% | Python 2.5% | Shell 1.2%
+The canonical public OWS repository is:
 
-moonpay/                          ← MoonPay GitHub organization
-├── skills                        ← MoonPay Agents skills library
-├── moonpay-sign                  ← Signing utilities
-├── moonpay-demo-integrations     ← Integration examples
-└── devops-challenge              ← Hiring challenge (unrelated)
-```
+- [github.com/open-wallet-standard/core](https://github.com/open-wallet-standard/core)
 
-## open-wallet-standard/core
+The public repo page presents it as both:
 
-**URL**: [github.com/open-wallet-standard/core](https://github.com/open-wallet-standard/core)
+- the public specification repository
+- the public reference-implementation repository
 
-This is the canonical implementation and specification repository.
+## What Is Directly Visible From The Repo Root
 
-### Directory Structure
+The top-level tree visible on the public repo page includes:
 
-```
-core/
-├── ows/                    # Rust core library
-│   ├── src/
-│   │   ├── vault/          # Vault management (create, open, list, delete)
-│   │   ├── wallet/         # Wallet operations (create, import, export)
-│   │   ├── signer/         # Signing engine (sign, signAndSend, etc.)
-│   │   ├── policy/         # Policy engine (declarative + custom)
-│   │   ├── apikey/         # API key management (create, revoke, verify)
-│   │   ├── crypto/         # Cryptographic primitives (AES, scrypt, HKDF)
-│   │   ├── chain/          # Chain definitions and address derivation
-│   │   └── lib.rs          # Public API surface
-│   ├── Cargo.toml
-│   └── tests/              # Integration tests
-├── bindings/
-│   ├── node/               # Node.js NAPI binding
-│   │   ├── src/            # Rust → NAPI bridge code
-│   │   ├── index.ts        # TypeScript API
-│   │   ├── package.json    # @open-wallet-standard/core
-│   │   └── tsconfig.json
-│   └── python/             # Python CFFI binding
-│       ├── src/            # Rust → CFFI bridge code
-│       ├── open_wallet_standard/
-│       │   └── __init__.py # Python API
-│       └── pyproject.toml  # open-wallet-standard
-├── docs/                   # Specification documents (Markdown)
-│   ├── 01-storage-format.md
-│   ├── 02-signing-interface.md
-│   ├── 03-policy-engine.md
-│   ├── 04-agent-access-layer.md
-│   ├── 05-key-isolation.md
-│   ├── 06-wallet-lifecycle.md
-│   └── 07-supported-chains.md
-├── website-docs/           # Source for docs.openwallet.sh
-│   ├── quickstart.md
-│   ├── sdk-cli.md
-│   └── sdk-node.md
-├── skills/
-│   └── ows/                # OWS-native skills (MCP tool definitions)
-│       ├── wallet_create.ts
-│       ├── sign.ts
-│       ├── sign_and_send.ts
-│       └── index.ts
-├── scripts/                # Build and release scripts
-│   ├── build.sh
-│   ├── release.sh
-│   └── test.sh
-├── .github/
-│   └── workflows/          # CI/CD (build, test, publish)
-├── LICENSE                 # MIT
-├── README.md
-└── Cargo.toml              # Workspace Cargo.toml
-```
+- `.githooks/`
+- `.github/`
+- `bindings/`
+- `docs/`
+- `ows/`
+- `readme/`
+- `scripts/`
+- `skills/ows/`
+- `website-docs/`
+- `README.md`
+- `LICENSE`
+- `SECURITY.md`
+- `CONTRIBUTING.md`
+- `CHANGELOG.md`
 
-### Key Files
+That tree is safe to describe because it is visible directly on the public repo root page.
 
-| File | Purpose |
-|------|---------|
-| `ows/src/lib.rs` | Public Rust API — the definitive interface |
-| `bindings/node/index.ts` | Node.js SDK entry point |
-| `bindings/python/open_wallet_standard/__init__.py` | Python SDK entry point |
-| `docs/*.md` | The 7 specification documents |
-| `skills/ows/index.ts` | OWS-native MCP skills |
+## Public Documentation Surface
 
-### Build and Test
+The public sources show three overlapping documentation surfaces:
+
+1. the GitHub `docs/` directory
+2. `docs.openwallet.sh`
+3. the repo README's spec / reference-doc list
+
+Across those sources, the publicly advertised docs include:
+
+- `00-specification.md`
+- `01-storage-format.md`
+- `02-signing-interface.md`
+- `03-policy-engine.md`
+- `04-agent-access-layer.md`
+- `05-key-isolation.md`
+- `06-wallet-lifecycle.md`
+- `07-supported-chains.md`
+- `08-conformance-and-security.md`
+- `quickstart.md`
+- `sdk-cli.md`
+- `sdk-node.md`
+- `sdk-python.md`
+
+## Documentation Drift Worth Noting
+
+Two review findings matter here:
+
+- `docs.openwallet.sh` currently exposes the numbered docs through `07-supported-chains.md` in its top navigation, while the repo README also includes `08-conformance-and-security.md`
+- the repo README advertises a `Policy Engine Implementation Guide`, but that guide was not directly accessible during this review
+
+This repository therefore treats:
+
+- `08-conformance-and-security.md` as public and important
+- the policy-engine implementation guide as an advertised reference doc, not as a stable directly reviewable source
+
+## Bindings And Packaging
+
+The public repo root directly shows:
+
+- `bindings/`
+- `ows/`
+- `skills/ows/`
+- `website-docs/`
+
+The public README and SDK docs also make these claims safely:
+
+- Node.js is published as `@open-wallet-standard/core`
+- Python is published as `open-wallet-standard`
+- the CLI binary is `ows`
+- the language bindings embed the Rust core through native FFI
+
+What this repository no longer claims without a directly accessible file:
+
+- a precise Rust crate-by-crate or module-by-module breakdown beyond what is visible in the public docs used here
+- specific internal source paths for MoonPay's `skills` repo
+
+## MoonPay GitHub Organization
+
+The public MoonPay org page shows **4 public repositories** at the time of review:
+
+- `skills`
+- `devops-challenge`
+- `moonpay-demo-integrations`
+- `moonpay-sign`
+
+For OWS analysis, the only repo that matters directly is:
+
+- `moonpay/skills`
+
+The org page describes it as:
+
+- "Skills for AI agents to move money — on-ramps, swaps, wallets, deposits, and more via the MoonPay CLI"
+
+The org page also shows it as public, MIT-licensed, and updated on **March 23, 2026**.
+
+## What This Repository Avoids Claiming About `moonpay/skills`
+
+Earlier drafts in this repository included path-level claims about the internal layout of `moonpay/skills`. During this review, those claims were removed unless they could be tied to a directly accessible public source used here.
+
+The safe GitHub-level statements are:
+
+- the repo exists publicly under the MoonPay org
+- MoonPay describes it as a skills repo for AI agents and MoonPay CLI workflows
+- MoonPay's Help Center articles list the public skill names and tool families
+
+## Build And Contribution Surface
+
+The public OWS repo clearly exposes:
+
+- `README.md`
+- `LICENSE`
+- `SECURITY.md`
+- `CONTRIBUTING.md`
+- releases
+
+The public README also documents:
 
 ```bash
-# Clone
 git clone https://github.com/open-wallet-standard/core.git
-cd core
-
-# Build Rust core
-cargo build --release
-
-# Run tests
-cargo test
-
-# Build Node.js binding
-cd bindings/node
-npm install
-npm run build
-
-# Build Python binding
-cd bindings/python
-pip install -e .
+cd core/ows
+cargo build --workspace --release
 ```
 
-### Release Process
+That is enough to safely describe OWS as a public open-source spec-plus-reference-implementation project with source-build instructions.
 
-Releases follow semantic versioning. Current version: **v1.0.0** (53 total releases including pre-releases).
+## Takeaway
 
-Published artifacts:
-- **npm**: `@open-wallet-standard/core` — includes prebuilt native binaries
-- **PyPI**: `open-wallet-standard` — includes prebuilt wheels
-- **crates.io**: `ows-cli` — Rust binary crate
-- **GitHub Releases**: source archives + prebuilt binaries for macOS/Linux/Windows
+The clean public boundary is:
 
-## moonpay/skills
+- `open-wallet-standard/core` = the OWS spec and its public reference-implementation surface
+- MoonPay public web / help-center / org pages = MoonPay's product and ecosystem layer around agents, CLI, skills, and payments
 
-**URL**: [github.com/moonpay/skills](https://github.com/moonpay/skills)
+## Primary Sources
 
-The MoonPay Agents skills library. Contains all MCP-compatible skills.
-
-### Structure
-
-```
-skills/
-├── core/                   # Core wallet skills (delegates to OWS)
-│   ├── wallet_create.ts
-│   ├── wallet_import.ts
-│   ├── sign.ts
-│   └── ...
-├── trading/                # Trading skills
-│   ├── swap.ts
-│   ├── bridge.ts
-│   ├── quote.ts
-│   └── ...
-├── ramp/                   # On/off-ramp skills (MoonPay-specific)
-│   ├── buy.ts
-│   ├── sell.ts
-│   └── ...
-├── research/               # Research and analytics skills
-│   ├── chain_info.ts
-│   ├── tx_status.ts
-│   ├── nft_list.ts
-│   └── ...
-├── x402/                   # x402 payment skills
-│   ├── pay_request.ts
-│   └── pay_discover.ts
-├── shared/                 # Shared utilities, types, validation
-├── mcp-server/             # MCP server implementation
-│   ├── server.ts
-│   ├── transport/
-│   │   ├── stdio.ts
-│   │   └── sse.ts
-│   └── index.ts
-└── package.json            # @moonpay/skills
-```
-
-### Relationship to OWS
-
-The `core/` skills in moonpay/skills wrap the OWS SDK. They don't implement wallet logic themselves — they call `@open-wallet-standard/core` methods and expose them as MCP tools with proper input/output schemas.
-
-## Other MoonPay Repositories
-
-### moonpay/moonpay-sign
-
-Signing utilities and helpers. Likely predates OWS and may contain legacy signing code.
-
-### moonpay/moonpay-demo-integrations
-
-Integration examples showing how to embed MoonPay services (widget, SDK) into web applications. Not directly related to OWS but provides context for MoonPay's broader platform.
-
-## Contributing
-
-The OWS repository accepts contributions under the MIT license. Key contribution areas as identified in the README:
-
-- New chain support (add a chain family definition)
-- SDK bindings for additional languages
-- Policy engine plugins
-- Documentation improvements
-- Security audits and hardening
-
-The primary maintainer is `@njdawn` (contributor to 53 releases).
+- `https://github.com/open-wallet-standard/core`
+- `https://docs.openwallet.sh/`
+- `https://openwallet.sh/`
+- `https://github.com/moonpay`
+- `https://support.moonpay.com/en/articles/586487-moonpay-agents-fund-your-ai`

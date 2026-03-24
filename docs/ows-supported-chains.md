@@ -2,6 +2,8 @@
 
 Canonical reference for OWS chain families, identifiers, derivation paths, and address formats.
 
+This file follows the numbered chain-spec doc. The public CLI / SDK examples currently show an 8-chain auto-derived set, but the numbered chain doc defines the broader supported-family surface and includes Spark.
+
 ## Identifier Types
 
 OWS uses [CAIP](https://chainagnostic.org/) identifiers throughout. All wallet files, policy contexts, audit logs, and API parameters use these canonical formats — never shorthand aliases.
@@ -40,6 +42,8 @@ OWS groups chains into families that share a cryptographic curve and address der
 | Filecoin | secp256k1 | 461 | `m/44'/461'/0'/0/{index}` | f1 + base32(blake2b-160) | fil |
 
 ## Known Networks
+
+The public chain doc defines canonical identifiers and known networks. It does **not** standardize default RPC or API endpoints; endpoint selection is intentionally implementation-specific.
 
 ### EVM Networks
 
@@ -125,6 +129,7 @@ No changes to OWS core, the signing interface, or the policy engine are needed.
 
 ## References
 
+- `https://github.com/open-wallet-standard/core/blob/main/docs/07-supported-chains.md`
 - [CAIP-2: Blockchain ID Specification](https://chainagnostic.org/CAIPs/caip-2)
 - [CAIP-10: Account ID Specification](https://chainagnostic.org/CAIPs/caip-10)
 - [BIP-32: Hierarchical Deterministic Wallets](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)

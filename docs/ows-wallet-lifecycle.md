@@ -1,269 +1,193 @@
 # OWS Wallet Lifecycle
 
-How wallets are created, imported, exported, backed up, recovered, and migrated.
+How wallets are created, imported, exported, backed up, recovered, deleted, and rotated.
+
+This document focuses on the **normative lifecycle semantics** from `06-wallet-lifecycle.md`, while also calling out places where the current reference implementation exposes additional CLI behavior.
 
 ## Creation
 
 ### Create from New Mnemonic
 
-Generates a new BIP-39 mnemonic and derives initial accounts.
-
-**CLI:**
-```bash
-ows wallet create --name "agent-treasury" --chain evm
-```
-
-**Node.js SDK:**
-```typescript
-const wallet = await ows.createWallet({
-  name: "agent-treasury",
-  chainType: "evm",
-  chains: ["eip155:8453"],
-  accountCount: 1,
-  mnemonicStrength: 128   // 128 = 12 words, 256 = 24 words
-});
-// Returns: WalletDescriptor (never the mnemonic)
-```
-
-**Internal flow:**
+The lifecycle spec defines wallet creation as:
 
 1. Generate 128 or 256 bits of cryptographically secure randomness
-2. Encode as BIP-39 mnemonic (12 or 24 words)
-3. Derive master seed via PBKDF2
-4. Derive accounts for each requested chain using BIP-44 paths
-5. Encrypt mnemonic with vault passphrase (scrypt + AES-256-GCM)
-6. Write encrypted wallet file to `~/.ows/wallets/<uuid>.json`
-7. Wipe mnemonic, seed, and private keys from memory
-8. Return only the `WalletDescriptor` (addresses, IDs, metadata)
+2. Encode as a BIP-39 mnemonic
+3. Derive the master seed via PBKDF2
+4. Derive accounts for the requested chains using the chain derivation rules
+5. Encrypt the mnemonic with the vault passphrase using scrypt + AES-256-GCM
+6. Write the encrypted wallet file under `~/.ows/wallets/`
+7. Wipe mnemonic, seed, and derived keys from memory
+8. Return a wallet descriptor containing public information only
 
-**The mnemonic is never returned to the caller.** Only public information (addresses, IDs, metadata) is returned.
+The spec text explicitly says the mnemonic is **not** returned as part of the core lifecycle result.
 
 ### Create from Existing Private Key
 
-Import a raw private key (for single-chain wallets):
+The public lifecycle doc also covers importing a raw private key as wallet creation for single-chain or explicitly provided key material:
 
 ```bash
 echo "<private-key>" | ows wallet import --name "imported" --chain evm --format raw
 ```
 
-The key material is encrypted immediately and the input buffer is zeroed.
+That path encrypts the provided key material immediately and zeroes the input buffer after import.
+
+### Reference Implementation CLI
+
+The public CLI reference documents:
+
+```bash
+ows wallet create --name "agent-treasury"
+ows wallet create --name "agent-treasury" --words 24 --show-mnemonic
+```
+
+That means the current implementation exposes a dangerous opt-in UX for displaying the mnemonic once, but that should be read as reference-implementation behavior rather than a change to the normative lifecycle model.
 
 ## Import
 
-OWS supports importing from standard formats:
+The lifecycle spec documents these import paths:
 
-### Ethereum Keystore v3
+1. Ethereum Keystore v3
+2. BIP-39 mnemonic
+3. WIF
+4. Solana keypair JSON
+5. Sui keystore JSON
 
-```bash
-ows wallet import --name "from-geth" \
-  --format keystore --file ~/keystore/UTC--2024-01-01T00-00-00.000Z--abc123
-```
-
-The importer reads the v3 JSON, wraps it in the OWS envelope, and optionally re-encrypts with the vault passphrase.
-
-### BIP-39 Mnemonic
+Examples from the lifecycle spec include:
 
 ```bash
+ows wallet import --name "from-geth" --format keystore --file ~/keystore/UTC--...
 ows wallet import --name "from-metamask" --format mnemonic --chain evm
-# Prompts for mnemonic words interactively (never as a CLI argument)
-```
-
-The mnemonic is entered interactively to avoid shell history exposure.
-
-### WIF (Bitcoin Wallet Import Format)
-
-```bash
 echo "<wif-key>" | ows wallet import --name "btc-wallet" --format wif --chain bitcoin
+ows wallet import --name "sol-wallet" --format solana-keypair --file ~/.config/solana/id.json
+ows wallet import --name "sui-wallet" --format sui-keystore --file ~/.sui/sui_config/sui.keystore
 ```
 
-### Solana Keypair JSON
+The public CLI reference for the current implementation documents a different surface centered on:
 
 ```bash
-ows wallet import --name "sol-wallet" \
-  --format solana-keypair --file ~/.config/solana/id.json
+echo "goose puzzle decorate ..." | ows wallet import --name "imported" --mnemonic
+echo "4c0883a691..." | ows wallet import --name "from-evm" --private-key
+echo "9d61b19d..." | ows wallet import --name "from-sol" --private-key --chain solana
 ```
 
-Reads the 64-byte keypair JSON array format used by the Solana CLI.
+For analysis, the right reading is:
 
-### Sui Keystore JSON
-
-```bash
-ows wallet import --name "sui-wallet" \
-  --format sui-keystore --file ~/.sui/sui_config/sui.keystore
-```
-
-Reads the base64-encoded keypair array format used by `sui keytool`.
+- the **spec** defines which lifecycle behaviors and source formats matter
+- the **reference implementation** chooses a specific CLI syntax for invoking a subset of those flows
 
 ## Export
 
-Export operations extract key material for use with other wallet software. They require explicit confirmation and produce a visible security warning.
+The lifecycle spec defines three export targets:
 
-### Export Mnemonic
+1. mnemonic
+2. Keystore v3
+3. raw private key
+
+Examples from the spec:
 
 ```bash
 ows wallet export --id 3198bc9c-... --format mnemonic
-# Displays the 12/24 word mnemonic on screen
-# Warning: "This mnemonic provides full access to all accounts derived from this wallet."
-```
-
-### Export Keystore v3
-
-```bash
 ows wallet export --id 3198bc9c-... --format keystore --output ~/exported.json
-```
-
-Exports a standard Ethereum Keystore v3 file compatible with geth, MetaMask, etc.
-
-### Export Private Key (Raw)
-
-```bash
 ows wallet export --id 3198bc9c-... --format raw --account eip155:8453:0xab16...
 ```
 
-Exports a single account's private key as hex.
+The public CLI reference for the implementation documents a simpler `ows wallet export --wallet "my-wallet"` surface in the SDK/CLI reference docs. The lifecycle analysis should therefore treat exact export flags as implementation detail, while preserving the three normative export semantics above.
+
+The current CLI reference also says wallet export requires an interactive terminal and returns either:
+
+- the mnemonic phrase for mnemonic wallets
+- JSON containing both curve keys for private-key wallets
 
 ## Backup
 
-### Full Vault Backup
+The lifecycle spec explicitly includes:
+
+- full-vault backup
+- restore from backup
+- automated backup configuration
+
+The spec example uses:
 
 ```bash
 ows backup --output ~/ows-backup-2026-02-27.tar.gz.enc
-```
-
-Creates an encrypted archive of the entire `~/.ows/` directory:
-
-1. Tar the vault directory (excluding `logs/` and `state/`)
-2. Encrypt the tar with a backup passphrase (separate from vault passphrase)
-3. Write to the output path
-
-### Restore from Backup
-
-```bash
 ows restore --input ~/ows-backup-2026-02-27.tar.gz.enc
 ```
 
-Decrypts and extracts the backup to `~/.ows/`. If the vault directory already exists, the user is prompted to merge or overwrite.
+The documented backup flow is:
 
-### Automated Backup
+1. tar the vault directory
+2. encrypt the tar with a backup passphrase
+3. write the encrypted archive to the requested path
 
-In `~/.ows/config.json`:
+The spec also documents an optional `backup` block in `~/.ows/config.json` for scheduled backups, including fields such as `enabled`, `schedule`, `destination`, `retention`, and `passphrase_env`.
 
-```json
-{
-  "backup": {
-    "enabled": true,
-    "schedule": "daily",
-    "destination": "~/.ows/backups/",
-    "retention": 30,
-    "passphrase_env": "OWS_BACKUP_PASSPHRASE"
-  }
-}
-```
+The corresponding restore flow explicitly allows the implementation to prompt for **merge** versus **overwrite** if the destination vault already exists.
 
 ## Recovery
 
-### From Mnemonic
+The lifecycle spec defines mnemonic recovery as a discovery flow:
 
-If the vault is lost but the mnemonic is available:
+1. accept the mnemonic interactively
+2. derive accounts incrementally using the chain derivation path
+3. query RPC endpoints for balance or transaction history
+4. stop after 20 consecutive empty addresses
+5. create a new wallet file containing the discovered accounts
 
-```bash
-ows wallet recover --name "recovered" --chain evm --chains eip155:8453,eip155:1
-# Prompts for mnemonic interactively
-# Scans for accounts with balance using gap limit of 20
-```
+That is a normative behavioral description; the exact RPC configuration remains implementation-specific.
 
-The recovery process:
-
-1. Accept mnemonic interactively
-2. Derive accounts using the chain's BIP-44 path, incrementing the index
-3. For each derived address, query the RPC for balance or transaction history
-4. Stop after 20 consecutive empty addresses (BIP-44 gap limit)
-5. Create a new wallet file with all discovered accounts
+The public lifecycle doc also treats restore-from-backup and import-from-keystore as recovery paths, not separate standards.
 
 ## Deletion
 
-```bash
-ows wallet delete --id 3198bc9c-...
-# Warning: "This will permanently delete the encrypted wallet file.
-# Ensure you have exported the mnemonic or private key before proceeding."
-# Requires --confirm flag or interactive confirmation
-```
+The lifecycle spec documents deletion as:
 
-Deletion:
+1. verify the wallet exists
+2. prompt for confirmation unless forced
+3. securely overwrite the wallet file before unlinking
+4. remove the wallet ID from any API-key scopes that reference it
+5. log the deletion to the audit log
 
-1. Verifies the wallet exists
-2. Prompts for confirmation (unless `--confirm` is passed)
-3. **Securely overwrites** the wallet file with random bytes before unlinking (to prevent recovery from disk)
-4. Removes the wallet ID from the `wallet_ids` array of all API keys that reference it
-5. Logs the deletion to the audit log
+That goes beyond a simple file delete; it is part of the lifecycle contract described by the public spec.
 
 ## Key Rotation
 
-```bash
-ows wallet rotate --from old-wallet --to new-wallet --chain eip155:8453
-```
+The lifecycle spec treats rotation as asset migration to a new key, not re-encryption of the existing wallet.
 
-This is a convenience operation that:
+Documented flow:
 
-1. Creates a new wallet (or uses an existing one)
-2. Queries balances on the old wallet
-3. Constructs transfer transactions for all assets
-4. Signs and sends using the old wallet
-5. Verifies receipt on the new wallet
+1. create or select the destination wallet
+2. query balances on the old wallet
+3. construct transfer transactions for assets
+4. sign and send using the old wallet
+5. verify receipt on the new wallet
 
-Key rotation does NOT re-encrypt the old wallet — it transfers assets to a new key.
+This distinction matters because rotation changes the active control key, not just the envelope around stored secrets.
 
 ## Wallet Discovery
 
-For environments where multiple tools may create OWS wallets:
+The lifecycle spec also documents a discovery mechanism for environments where multiple tools may create OWS wallets.
 
-```typescript
-const wallets = await ows.discoverWallets({
-  chainType: "evm",
-  chainId: "eip155:8453",
-  name: "agent-*",      // glob pattern
-  hasPolicy: true
-});
-```
+The public examples include:
 
-```bash
+```text
+discoverWallets({ chainType, chainId, name, hasPolicy })
 ows wallet list --chain evm --with-policy
 ows wallet list --name "agent-*"
 ```
 
-## Lifecycle State Diagram
+That topic is easy to miss, but it is part of the public lifecycle document and should remain covered in this repository.
 
-```
-                    ┌─────────┐
-                    │ Create  │
-                    │ Import  │
-                    │ Recover │
-                    └────┬────┘
-                         │
-                         ▼
-                    ┌─────────┐
-              ┌────▶│  Active │◀───────┐
-              │     └────┬────┘        │
-              │          │             │
-         Unlock     Sign/Send    Attach Policy
-              │          │             │
-              │     ┌────▼────┐        │
-              └─────│  Locked │        │
-                    └────┬────┘        │
-                         │             │
-                    ┌────▼────┐   ┌────┴────┐
-                    │ Export  │   │ Rotate  │
-                    │ Backup  │   └─────────┘
-                    └────┬────┘
-                         │
-                    ┌────▼────┐
-                    │ Delete  │
-                    └─────────┘
-```
+## Lifecycle Interpretation
+
+The wallet lifecycle is one of the places where OWS most clearly separates:
+
+- **normative semantics**: what create/import/export/backup/recover/delete/rotate must mean
+- **reference implementation UX**: exact command names, flags, prompts, and installer choices
+
+That separation keeps the analysis accurate when the public implementation evolves without changing the standard itself.
 
 ## References
 
-- [BIP-39: Mnemonic Generation](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-- [BIP-44: Gap Limit](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
-- [Ethereum Keystore v3](https://ethereum.org/developers/docs/data-structures-and-encoding/web3-secret-storage)
-- [Solana CLI Keypair Format](https://docs.solanalabs.com/cli/wallets/file-system)
+- `docs/06-wallet-lifecycle.md` in `open-wallet-standard/core`
+- `docs/00-specification.md` for the normative vs non-normative split
+- `docs/sdk-cli.md` for the current public CLI syntax

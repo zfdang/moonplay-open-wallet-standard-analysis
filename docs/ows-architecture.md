@@ -1,22 +1,30 @@
 # OWS Architecture
 
+This document is a synthesis of the public OWS architecture story. It combines:
+
+- the homepage architecture framing
+- the numbered access-layer, policy, and key-isolation docs
+- the public README and SDK docs
+
+When those sources disagree, this document follows the numbered docs for behavioral claims.
+
 ## Layered Architecture
 
 ```
 OWS
 ├── Access Layer
 │   ├── CLI (`ows` command)
-│   ├── Node.js SDK (@open-wallet-standard/core)
-│   ├── Python SDK (open-wallet-standard)
-│   ├── MCP Server (Model Context Protocol)
-│   └── REST Interface (optional local daemon)
+│   ├── Node.js SDK (`@open-wallet-standard/core`)
+│   ├── Python SDK (`open-wallet-standard`)
+│   ├── MCP / REST-style local surfaces (homepage-level examples)
+│   └── Other local access profiles defined by `04-agent-access-layer.md`
 ├── Policy Engine
 │   ├── Declarative Rules (allowed_chains, expires_at)
 │   ├── Custom Executable Policies (stdin/stdout protocol)
 │   └── AND semantics (all policies must pass)
 ├── Signing Core
 │   ├── In-process Rust library
-│   ├── Chain-specific signers (9 chain families)
+│   ├── Chain-specific signers
 │   ├── mlock'd memory + zeroization
 │   └── Key caching (short-lived, bounded)
 ├── Wallet Vault
@@ -32,9 +40,17 @@ OWS
     ├── Tron
     ├── TON
     ├── Sui
-    ├── Spark (Bitcoin L2)
+    ├── Spark
     └── Filecoin
 ```
+
+## Public-Source Alignment Notes
+
+Three source-boundary notes matter here:
+
+1. The homepage shows CLI, SDK, MCP, and REST in the interface layer, but `04-agent-access-layer.md` keeps the normative contract abstract and does not require specific package names or transports.
+2. The public quickstart shows a `Signing Enclave (isolated proc)` diagram, but `05-key-isolation.md` says the current implementation model is **in-process** and treats the subprocess enclave as a future profile.
+3. `07-supported-chains.md` defines **9 chain families** including Spark, while the current CLI / SDK examples for automatically derived accounts show **8** families and do not include Spark in the example output. This file therefore uses the numbered chain doc for the full supported-family set and the SDK docs for current example behavior.
 
 ## Architecture Diagram
 
@@ -127,7 +143,7 @@ The spec defines three conforming access profiles:
 
 ### Profile A: In-Process Binding
 
-The caller links directly against the OWS Rust library via FFI (Node.js NAPI, Python CFFI). Lowest latency, same address space.
+The caller links directly against the OWS Rust library via FFI (Node.js NAPI, Python PyO3 bindings). Lowest latency, same address space.
 
 ### Profile B: Local Subprocess
 
@@ -151,5 +167,14 @@ All profiles MUST preserve the same signing semantics, policy evaluation order, 
 | Chain identifiers | CAIP-2 / CAIP-10 |
 | Key derivation | BIP-32 / BIP-39 / BIP-44 |
 | Node.js binding | NAPI (native FFI) |
-| Python binding | CFFI (native FFI) |
+| Python binding | PyO3 (native bindings) |
 | License | MIT |
+
+## Primary Sources
+
+- `https://openwallet.sh/`
+- `https://github.com/open-wallet-standard/core`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/03-policy-engine.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/04-agent-access-layer.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/05-key-isolation.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/07-supported-chains.md`

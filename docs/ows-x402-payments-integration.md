@@ -1,131 +1,94 @@
 # OWS x402 Payments Integration
 
-How OWS integrates the x402 payment protocol for agent-to-agent and agent-to-service payments.
+What the public OWS and MoonPay sources do and do not establish about x402 payment flows.
 
-## What is x402?
+## What Is Directly Supported By Public OWS Sources
 
-x402 is a payment protocol inspired by the HTTP 402 "Payment Required" status code. It defines a standard way for:
-- A service to request payment before fulfilling a request
-- An agent (or user) to make that payment on-chain
-- The service to verify payment and complete the request
+The public OWS materials support these points:
 
-OWS implements x402 as a first-class payment flow, allowing AI agents to pay for services autonomously, subject to the same policy constraints as any other signing operation.
+- the OWS homepage lists **x402** in the "Inspired by" section
+- the public quickstart describes `ows pay request` and `ows pay discover`
+- the public CLI reference documents `ows pay request` and `ows pay discover`
+- the CLI reference says `ows pay request` handles a `402 Payment Required` response by signing an **EIP-3009 `TransferWithAuthorization` for USDC** and retrying
+- the CLI reference says `ows pay discover` discovers x402-enabled services from a **Bazaar** directory
 
-## Payment Flow
+These are public reference-implementation capabilities.
 
-```
-┌─────────┐                   ┌──────────┐                ┌──────────────┐
-│  Agent   │                   │  Service  │                │  Blockchain  │
-└────┬─────┘                   └─────┬────┘                └──────┬───────┘
-     │                               │                            │
-     │  1. Request resource          │                            │
-     │──────────────────────────────▶│                            │
-     │                               │                            │
-     │  2. HTTP 402 + payment terms  │                            │
-     │◀──────────────────────────────│                            │
-     │                               │                            │
-     │  3. Construct payment tx      │                            │
-     │  4. OWS sign (policy check)   │                            │
-     │  5. Broadcast tx              │                            │
-     │───────────────────────────────────────────────────────────▶│
-     │                               │                            │
-     │  6. tx hash                   │                            │
-     │◀──────────────────────────────────────────────────────────│
-     │                               │                            │
-     │  7. Retry request + tx proof  │                            │
-     │──────────────────────────────▶│                            │
-     │                               │  8. Verify payment on-chain│
-     │                               │───────────────────────────▶│
-     │                               │                            │
-     │                               │  9. Confirmed              │
-     │                               │◀───────────────────────────│
-     │                               │                            │
-     │  10. Resource delivered       │                            │
-     │◀──────────────────────────────│                            │
-     │                               │                            │
-```
+## What The Core Specification Says
 
-## OWS Skills
+`00-specification.md` explicitly places **on-chain service payment flows** out of scope for the core OWS specification.
 
-### `ows pay request`
+That means:
 
-Makes a payment to a service endpoint.
+- x402 is relevant to the public OWS toolchain
+- x402 is **not** part of the core conformance contract for storage, signing, policy, lifecycle, or chain support
 
-```bash
-ows pay request \
-  --to <recipient-address> \
-  --amount <amount> \
-  --asset <asset-id> \
-  --chain <chain-id> \
-  --wallet <wallet-id> \
-  --api-key <api-key-token>
-```
+## What Can Be Said Safely About Bazaar Discovery
 
-Parameters:
-- `--to`: Recipient address (CAIP-10 account or raw address)
-- `--amount`: Payment amount in token units (e.g., "0.01" for 0.01 USDC)
-- `--asset`: Asset identifier (e.g., `eip155:8453:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` for USDC on Base)
-- `--chain`: Chain to transact on
-- `--wallet`: Wallet ID to pay from
-- `--api-key`: API key for agent-mode signing
+The public CLI docs let us say:
 
-The payment goes through the standard OWS signing pipeline:
-1. Construct a transfer transaction
-2. Evaluate policies attached to the API key (allowed chains? spending limits? custom policy?)
-3. If approved, sign and broadcast
-4. Return transaction hash
+- `ows pay discover` exists
+- it uses a Bazaar directory
+- it supports client-side filtering and pagination
 
-### `ows pay discover`
+The public docs do **not** give enough basis to standardize:
 
-Discovers available services and their payment terms via the Bazaar directory.
+- Bazaar registry schema
+- service registration protocol
+- response-body contract beyond the CLI examples
 
-```bash
-ows pay discover [--category <category>] [--chain <chain-id>]
-```
+So this repository now treats Bazaar as a public **reference-implementation discovery surface**, not as a normative OWS subsystem.
 
-Returns a list of registered services with:
-- Service name and description
-- Accepted chains and tokens
-- Price per request or subscription terms
-- Endpoint URL
+## Relationship To OWS Wallet Semantics
 
-## Bazaar Directory
+When x402 flows use an OWS wallet, the public OWS docs still require:
 
-Bazaar is a decentralized directory service where:
-- **Service providers** register their endpoints and payment terms
-- **Agents** discover services they can pay for
+- wallet lookup
+- credential handling
+- policy evaluation before token-backed secret decryption
+- chain-specific signing
+- audit logging without secret leakage
 
-This enables an agent economy where AI agents can autonomously find and pay for services — data APIs, compute resources, other agents' capabilities — without human intervention.
+So x402 sits **on top of** OWS signing and policy behavior rather than replacing it.
 
-## Policy Integration
+## MoonPay's Public x402 Surface
 
-x402 payments are subject to the same OWS policy engine as any other signing operation. This is critical for agent safety:
+MoonPay Help Center documents two x402-related MoonPay CLI surfaces:
 
-```json
-{
-  "version": "1.0.0",
-  "rules": {
-    "allowed_chains": ["eip155:8453"],
-    "max_transaction_value": {
-      "asset": "eip155:8453:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "amount": "10.00"
-    },
-    "daily_spending_limit": {
-      "asset": "eip155:8453:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "amount": "100.00"
-    }
-  }
-}
-```
+- `x402 request`
+- `upgrade`
 
-With this policy, an agent can make x402 payments of up to $10 per transaction and $100 per day in USDC on Base — but nothing else. The owner retains full control over the agent's spending behavior.
+The `upgrade` flow is documented as an x402 payment to increase API rate limits, settled in USDC on Solana or Base.
 
-## Security Considerations
+MoonPay also publishes the skill name:
 
-| Concern | Mitigation |
-|---------|-----------|
-| Agent overspends | Spending limit policies (per-tx and daily) |
-| Payment to wrong recipient | Custom policy can whitelist recipient addresses |
-| Replay attacks | Each transaction has a unique nonce; blockchain prevents replay |
-| Service doesn't deliver | Out of scope for OWS; resolved at the application layer |
-| Man-in-the-middle | HTTPS for service communication; on-chain verification for payment |
+- `moonpay-x402`
+
+Those are MoonPay product features, not OWS core-spec requirements.
+
+## What Was Removed In This Review
+
+Earlier drafts in this repository mentioned third-party x402 skills and partner-marketplace details that were not directly verifiable from the public primary sources used in this review.
+
+This file now limits itself to:
+
+- public OWS docs
+- public MoonPay docs
+
+## Takeaway
+
+x402 is best understood as:
+
+- an explicit inspiration for OWS
+- a documented capability in the public OWS reference implementation
+- a documented capability in MoonPay CLI
+- **not** part of the OWS core interoperability contract
+
+## Primary Sources
+
+- `https://openwallet.sh/`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/00-specification.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/quickstart.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/sdk-cli.md`
+- `https://support.moonpay.com/en/articles/586583-moonpay-cli-for-ai-agents`
+- `https://www.moonpay.com/agents`

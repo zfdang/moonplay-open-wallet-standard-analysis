@@ -1,140 +1,97 @@
-# MoonPay Open Wallet Standard — Analysis
+# MoonPay Open Wallet Standard Analysis
 
-This repository contains a comprehensive technical analysis of the **Open Wallet Standard (OWS)** and the MoonPay Agents ecosystem built on top of it.
+This repository is a source-checked analysis of the public Open Wallet Standard (OWS) materials and the public MoonPay Agents / MoonPay CLI materials around them.
 
-```
-Open Wallet Standard (OWS)
-├── Storage Layer
-│   ├── Vault directory structure (~/.ows/vault/)
-│   ├── AES-256-GCM encrypted wallet files
-│   ├── Scrypt KDF (passphrase → key)
-│   ├── HKDF-SHA256 (API key → key)
-│   └── Audit log
-├── Signing Interface
-│   ├── sign (raw transaction)
-│   ├── signAndSend (sign + broadcast)
-│   ├── signMessage (EIP-191, Solana off-chain, etc.)
-│   └── signTypedData (EIP-712)
-├── Policy Engine
-│   ├── Declarative rules (allowed_chains, expires_at)
-│   ├── Custom executable policies (stdin/stdout)
-│   └── Default-deny on timeout or error
-├── Agent Access Layer
-│   ├── Owner mode (passphrase)
-│   ├── Agent mode (API key — scoped, revocable)
-│   └── Access profiles (in-process, subprocess, local service)
-├── Key Isolation & Security
-│   ├── mlock / zeroize / anti-ptrace
-│   ├── Key caching with TTL
-│   └── Future: subprocess enclave model
-├── Wallet Lifecycle
-│   ├── Create / Import / Export / Delete
-│   ├── Backup & Recovery
-│   └── Key Rotation
-├── Supported Chains (9 families)
-│   ├── EVM (Ethereum, Base, Polygon, Arbitrum, Optimism, BSC, Avalanche)
-│   ├── Solana, Bitcoin, Cosmos, Tron, TON, Sui, Spark, Filecoin
-│   └── BIP-32/39/44 derivation · CAIP-2/CAIP-10 identifiers
-├── SDK & CLI
-│   ├── Rust core (ows/)
-│   ├── Node.js NAPI binding (@open-wallet-standard/core)
-│   ├── Python CFFI binding (open-wallet-standard)
-│   └── CLI (ows-cli)
-├── x402 Payments
-│   ├── ows pay request / ows pay discover
-│   └── Bazaar directory
-└── MoonPay Agents (flagship implementation)
-    ├── Skills framework (30+ skills)
-    ├── MCP server (Claude, Cursor, Windsurf)
-    ├── On/off-ramp (buy/sell crypto with fiat)
-    └── MoonPay CLI (@moonpay/cli)
-```
+## Review Status
+
+This repository was reread and revised against public sources on **2026-03-24**.
+
+Authority order used in this review:
+
+1. the numbered OWS docs in `open-wallet-standard/core/docs/`
+2. `00-specification.md` and `08-conformance-and-security.md`
+3. the public `open-wallet-standard/core` README and `openwallet.sh`
+4. MoonPay public product pages, Help Center articles, newsroom posts, and GitHub org pages for MoonPay-specific claims
+
+The detailed review notes live in [ows-public-source-review.md](docs/ows-public-source-review.md).
+
+## Important Public-Source Notes
+
+- The public OWS sources are useful but not perfectly aligned. Where the overview pages, quickstart, and numbered docs conflict, this repository now follows the numbered docs and the conformance/security docs.
+- `docs.openwallet.sh` currently exposes the numbered docs through `07-supported-chains.md` in the top navigation, while the public GitHub repo and README also include `08-conformance-and-security.md`.
+- The public quickstart shows a `Signing Enclave (isolated proc)` diagram, but `05-key-isolation.md` says current implementations are **in-process** and presents subprocess isolation as a future profile.
+- The public OWS README advertises a `Policy Engine Implementation Guide`, but that document was not directly accessible during this review. This repository now treats it as an advertised reference doc, not as a stable public source for module-level claims.
+- `07-supported-chains.md` defines 9 chain families including Spark, while the current CLI / SDK examples show 8 auto-derived chain accounts. This repository treats the numbered chain doc as normative and the SDK docs as current implementation examples.
+- MoonPay Agents publicly says it implements OWS, but MoonPay Help Center docs describe MoonPay CLI wallets as local HD wallets with **OS keychain encryption**, while the public OWS reference docs describe a `~/.ows/` AES-256-GCM / scrypt vault. This repository therefore keeps a strict boundary between **the OWS reference implementation** and **MoonPay's product implementation**.
 
 ## Recommended Reading Order
 
-### Context and Overview
+1. [ows-public-source-review.md](docs/ows-public-source-review.md)
+   Review findings, source-precedence rules, public-source inconsistencies, and the coverage matrix for this repository.
 
-1. [ows-overview.md](docs/ows-overview.md)  
-   What OWS is, what problem it solves, who it's for, the six core design principles, and the relationship to MoonPay Agents.
+2. [ows-overview.md](docs/ows-overview.md)
+   What OWS is, the six design principles on `openwallet.sh`, what can be stated safely about its relationship to MoonPay, and which homepage claims are marketing-level versus spec-level.
 
-2. [ows-architecture.md](docs/ows-architecture.md)  
-   Layered architecture diagrams, request flow for owner and agent signing, access model, technology stack, and the three access profiles.
+3. [ows-architecture.md](docs/ows-architecture.md)
+   A synthesis of the public architecture story across the homepage, README, policy docs, access-layer docs, and key-isolation docs.
 
-### Storage and Cryptography
+4. [ows-storage-format.md](docs/ows-storage-format.md)
+   The normative vault layout, wallet and API-key file structures, filesystem permissions, crypto envelope details, and backward compatibility rules.
 
-3. [ows-storage-format.md](docs/ows-storage-format.md)  
-   Vault directory structure, wallet file format, API key file format, cryptographic parameters (AES-256-GCM, scrypt, HKDF), audit log, and backward compatibility with Keystore v3.
+5. [ows-key-isolation-and-security.md](docs/ows-key-isolation-and-security.md)
+   Current in-process hardening, threat model, key lifecycle, short-lived key caching, and the future subprocess-enclave profile.
 
-4. [ows-key-isolation-and-security.md](docs/ows-key-isolation-and-security.md)  
-   In-process key lifecycle, memory hardening (mlock, zeroize, anti-ptrace), passphrase handling modes, threat model, and the future subprocess enclave model.
+6. [ows-signing-interface.md](docs/ows-signing-interface.md)
+   The normative signing operations, error model, and where the public overview page diverges from `02-signing-interface.md`.
 
-### Signing and Policies
+7. [ows-policy-engine.md](docs/ows-policy-engine.md)
+   Owner versus agent mode, API-key cryptography, declarative rules, executable policies, default-deny behavior, and current file-format limits.
 
-5. [ows-signing-interface.md](docs/ows-signing-interface.md)  
-   The four signing operations (sign, signAndSend, signMessage, signTypedData), TypeScript type definitions, chain-specific conventions, error codes, and concurrency.
+8. [ows-agent-access-layer.md](docs/ows-agent-access-layer.md)
+   The optional local access profiles and the interoperability constraints they must preserve.
 
-6. [ows-policy-engine.md](docs/ows-policy-engine.md)  
-   Owner vs agent access, API key cryptography (HKDF derivation, token-as-capability), declarative rules, custom executable policies (stdin/stdout protocol), evaluation order, default-deny semantics.
+9. [ows-wallet-lifecycle.md](docs/ows-wallet-lifecycle.md)
+   Creation, import, export, backup, recovery, deletion, rotation, and discovery.
 
-### Access and Lifecycle
+10. [ows-supported-chains.md](docs/ows-supported-chains.md)
+    Chain families, identifiers, derivation paths, shorthand aliases, and the out-of-scope boundary around endpoint selection.
 
-7. [ows-agent-access-layer.md](docs/ows-agent-access-layer.md)  
-   How agents interact with OWS wallets: required operations, credential semantics, three access profiles (in-process, subprocess, local service), cross-layer consistency.
+11. [ows-specification-conformance-and-security.md](docs/ows-specification-conformance-and-security.md)
+    Document classes, conformance targets, optional features, extension rules, and the concrete security requirements from the public conformance doc.
 
-8. [ows-wallet-lifecycle.md](docs/ows-wallet-lifecycle.md)  
-   Wallet creation, import (5 formats), export (3 formats), backup and recovery, secure deletion, key rotation, wallet discovery, and lifecycle state diagram.
+12. [ows-sdk-cli-reference.md](docs/ows-sdk-cli-reference.md)
+    The public reference-implementation surfaces: `ows`, `@open-wallet-standard/core`, and `open-wallet-standard`, including the current CLI and SDK drift points.
 
-### Chain Support
+13. [ows-reference-implementation-guide.md](docs/ows-reference-implementation-guide.md)
+    How to read the quickstart and SDK docs correctly, and why they should not be treated as normative spec text.
 
-9. [ows-supported-chains.md](docs/ows-supported-chains.md)  
-   Nine chain families, CAIP-2/CAIP-10 identifiers, BIP-44 derivation paths, known networks, shorthand aliases, HD derivation tree, and how to add a new chain.
+14. [ows-github-repos.md](docs/ows-github-repos.md)
+    What is verifiably public in `open-wallet-standard/core` and MoonPay's GitHub organization, and which path-level claims were removed because they were not directly verifiable.
 
-### SDK, CLI, and Ecosystem
+15. [ows-moonpay-agents-and-skills.md](docs/ows-moonpay-agents-and-skills.md)
+    MoonPay Agents, MoonPay CLI, MCP setup, published skill names, and the product-versus-standard boundary.
 
-10. [ows-sdk-cli-reference.md](docs/ows-sdk-cli-reference.md)  
-    CLI commands, Node.js SDK API, Python SDK API, installation methods, environment variables, and the MoonPay CLI wrapper.
-
-11. [ows-moonpay-agents-and-skills.md](docs/ows-moonpay-agents-and-skills.md)  
-    MoonPay Agents product, skills framework (core, trading, on/off-ramp, research), MCP server integration with Claude/Cursor, agent security model, and the OWS vs MoonPay distinction.
-
-12. [ows-x402-payments-integration.md](docs/ows-x402-payments-integration.md)  
-    The x402 payment protocol, agent-to-service payment flow, Bazaar directory, policy integration for spending limits, and security considerations.
-
-### Repository Guide
-
-13. [ows-github-repos.md](docs/ows-github-repos.md)  
-    Guide to the `open-wallet-standard/core` repository structure, `moonpay/skills`, other MoonPay repos, build instructions, and contribution guidelines.
+16. [ows-x402-payments-integration.md](docs/ows-x402-payments-integration.md)
+    What the public OWS and MoonPay docs actually establish about x402, paid requests, Bazaar discovery, and why payments remain outside core-spec conformance.
 
 ## Coverage Map
 
-Reading the list above in order covers:
+Reading the repository in the order above covers:
 
-- the overall OWS product story, design principles, and layered architecture
-- vault storage format, wallet/API-key file structures, and cryptographic parameters
-- key isolation, memory hardening, and the security threat model
-- the four signing operations, their type definitions, and error handling
-- the policy engine: declarative rules, custom policies, and default-deny semantics
-- agent access model, credential types, and three deployment profiles
-- wallet lifecycle from creation through deletion, including backup and recovery
-- nine supported chain families, address derivation, and CAIP identifiers
-- CLI, Node.js SDK, and Python SDK usage and API reference
-- MoonPay Agents, skills framework, MCP integration, and the agent economy
-- x402 payment protocol and the Bazaar directory for agent commerce
-- public GitHub repositories, project structure, and how to contribute
+- the OWS homepage narrative and the numbered spec documents
+- storage, signing, policy, lifecycle, chain, and conformance requirements
+- access-layer and key-isolation guidance
+- the public CLI, Node, and Python reference surfaces
+- the public GitHub repository surface for OWS and MoonPay
+- MoonPay Agents, MoonPay CLI, MCP integration, and MoonPay's published skill surface
+- x402 and payment/discovery features as implementation-layer capabilities rather than core-spec requirements
+- the current set of publicly visible documentation conflicts and how this repository resolves them
 
-## Key Facts
+## Primary Public Sources
 
-| Attribute | Value |
-|-----------|-------|
-| Version | v1.0.0 |
-| Launch Date | March 23, 2026 |
-| License | MIT |
-| Created By | MoonPay |
-| GitHub | [open-wallet-standard/core](https://github.com/open-wallet-standard/core) |
-| Website | [openwallet.sh](https://openwallet.sh) |
-| Docs | [docs.openwallet.sh](https://docs.openwallet.sh) |
-| npm | `@open-wallet-standard/core` |
-| PyPI | `open-wallet-standard` |
-| crates.io | `ows-cli` |
-| Primary Language | Rust (86.1%) |
-| Supported Chains | 9 families (EVM, Solana, Bitcoin, Cosmos, Tron, TON, Sui, Spark, Filecoin) |
+- `https://openwallet.sh/`
+- `https://docs.openwallet.sh/`
+- `https://github.com/open-wallet-standard/core`
+- `https://www.moonpay.com/agents`
+- `https://support.moonpay.com/en/collections/1373008-ai-agents-and-cli-tools`
+- `https://github.com/moonpay`

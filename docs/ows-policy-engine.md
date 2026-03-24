@@ -25,6 +25,8 @@ sign_transaction(wallet, chain, tx, credential)
 
 The credential itself determines the access tier. The owner uses the passphrase; agents use tokens. Different agents get different tokens with different policies.
 
+There are no bypass flags for agent mode. If an owner wants policy-constrained access for themselves, they use an API token instead of the wallet passphrase.
+
 ## API Key Cryptography
 
 ### Token-as-Capability Model
@@ -119,6 +121,8 @@ Time-bound access (compares `PolicyContext.timestamp` to this ISO-8601 string).
 { "type": "expires_at", "timestamp": "2026-04-01T00:00:00Z" }
 ```
 
+The public numbered policy doc is intentionally narrow here. It does **not** standardize built-in declarative fields for value caps, recipient allowlists, or daily spend limits. Those belong in executable policies if an implementation wants them.
+
 ## Custom Executable Policies
 
 For anything declarative rules can't express — on-chain simulation, external API calls, complex business logic.
@@ -178,6 +182,14 @@ Policies are JSON files stored in `~/.ows/policies/`:
 
 A policy MUST have at least one of `rules` or `executable`.
 
+If `executable` is present, the public doc says it must resolve to an executable file at evaluation time.
+
+## Public-Source Drift On `action`
+
+The docs overview page shows a broader type where `Policy.action` may be `"deny"` or `"warn"`. The detailed numbered `03-policy-engine.md` says the current policy-file format supports `action: "deny"` only.
+
+This repository follows the numbered policy doc for file-format claims.
+
 ## PolicyContext
 
 The JSON object available to policy evaluation:
@@ -197,9 +209,14 @@ The JSON object available to policy evaluation:
     "daily_total": "50000000000000000",
     "date": "2026-03-22"
   },
+  "policy_config": {
+    "rpc_url": "https://mainnet.base.org"
+  },
   "timestamp": "2026-03-22T10:35:22Z"
 }
 ```
+
+The exact `PolicyContext` is implementation-defined beyond the stable fields the public doc calls out. The important interoperability point is deterministic allow/deny behavior for a given context, not a promise that every implementation exposes identical helper fields.
 
 ## PolicyResult
 
@@ -272,4 +289,6 @@ except Exception as e:
 
 ## References
 
+- `https://github.com/open-wallet-standard/core/blob/main/docs/03-policy-engine.md`
+- `https://docs.openwallet.sh/`
 - [ERC-4337 Session Keys](https://eips.ethereum.org/EIPS/eip-4337)

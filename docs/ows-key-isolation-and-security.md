@@ -2,9 +2,11 @@
 
 Optional deployment guidance for reducing private-key exposure to agents, logs, and local process risks. This document describes recommended implementation strategies and deployment profiles rather than a single mandatory architecture.
 
+The key review point here is source precedence: the current public implementation posture comes from `05-key-isolation.md`, not from the higher-level quickstart diagram.
+
 ## Current Architecture
 
-Signing happens in-process. The OWS Rust core is linked into the caller's process via FFI (Node NAPI, Python CFFI, or CLI binary).
+Signing happens in-process. The OWS Rust core is linked into the caller's process via FFI (Node NAPI, Python PyO3 bindings, or CLI binary).
 
 ```
 ┌────────────────────────────────────────────┐
@@ -43,6 +45,8 @@ Signing happens in-process. The OWS Rust core is linked into the caller's proces
 ```
 
 Immediate zeroization is critical. In the current Rust implementation this is handled with dedicated secret containers and drop-time zeroization.
+
+This is one of the places where the public quickstart and the detailed docs drift: quickstart shows an isolated signing enclave, while `05-key-isolation.md` says the current model is in-process and presents the enclave as a future hardening profile.
 
 ## Memory Hardening Techniques
 
@@ -97,7 +101,7 @@ Decrypting key material via scrypt adds latency. Implementations SHOULD maintain
 ```
 Agent → sign_transaction(wallet, chain, tx, "ows_key_...")
           │
-          └─► ows-lib (same process)
+          └─► OWS library (same process)
                 ├── token lookup + policy evaluation
                 ├── HKDF decrypt mnemonic (mlock'd, zeroized on drop)
                 ├── sign
@@ -111,9 +115,9 @@ Policy enforcement is handled by the code path — the `ows_key_` credential tri
 ```
 Agent → sign_transaction(wallet, chain, tx, "ows_key_...")
           │
-          └─► ows-lib (parent process)
+          └─► OWS library (parent process)
                 ├── token lookup + policy evaluation
-                └── fork/exec ows-enclave
+                └── fork/exec subprocess enclave
                       ├── receive (token, wallet_id, tx) over stdin
                       ├── HKDF decrypt mnemonic
                       ├── sign
@@ -126,5 +130,7 @@ The decrypt→sign→wipe path moves to a child process. The parent (agent's pro
 
 ## References
 
+- `https://github.com/open-wallet-standard/core/blob/main/docs/05-key-isolation.md`
+- `https://github.com/open-wallet-standard/core/blob/main/docs/08-conformance-and-security.md`
 - [Linux prctl(2) PR_SET_DUMPABLE](https://man7.org/linux/man-pages/man2/prctl.2.html)
 - [mlock(2) Memory Locking](https://man7.org/linux/man-pages/man2/mlock.2.html)
