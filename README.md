@@ -8,21 +8,12 @@ This repository was reread and revised against public sources on **2026-03-24**.
 
 Authority order used in this review:
 
-1. the numbered OWS docs in `open-wallet-standard/core/docs/`
-2. `00-specification.md` and `08-conformance-and-security.md`
-3. the public `open-wallet-standard/core` README and `openwallet.sh`
+1. the numbered OWS docs in [`open-wallet-standard/core/docs/`](https://github.com/open-wallet-standard/core/tree/main/docs)
+2. [00-specification.md](https://github.com/open-wallet-standard/core/blob/main/docs/00-specification.md) and [08-conformance-and-security.md](https://github.com/open-wallet-standard/core/blob/main/docs/08-conformance-and-security.md)
+3. the public [`open-wallet-standard/core` README](https://github.com/open-wallet-standard/core) and [`openwallet.sh`](https://openwallet.sh/)
 4. MoonPay public product pages, Help Center articles, newsroom posts, and GitHub org pages for MoonPay-specific claims
 
 The detailed review notes live in [ows-public-source-review.md](docs/ows-public-source-review.md).
-
-## Important Public-Source Notes
-
-- The public OWS sources are useful but not perfectly aligned. Where the overview pages, quickstart, and numbered docs conflict, this repository now follows the numbered docs and the conformance/security docs.
-- `docs.openwallet.sh` currently exposes the numbered docs through `07-supported-chains.md` in the top navigation, while the public GitHub repo and README also include `08-conformance-and-security.md`.
-- The public quickstart shows a `Signing Enclave (isolated proc)` diagram, but `05-key-isolation.md` says current implementations are **in-process** and presents subprocess isolation as a future profile.
-- The public OWS README advertises a `Policy Engine Implementation Guide`, but that document was not directly accessible during this review. This repository now treats it as an advertised reference doc, not as a stable public source for module-level claims.
-- `07-supported-chains.md` defines 9 chain families including Spark, while the current CLI / SDK examples show 8 auto-derived chain accounts. This repository treats the numbered chain doc as normative and the SDK docs as current implementation examples.
-- MoonPay Agents publicly says it implements OWS, but MoonPay Help Center docs describe MoonPay CLI wallets as local HD wallets with **OS keychain encryption**, while the public OWS reference docs describe a `~/.ows/` AES-256-GCM / scrypt vault. This repository therefore keeps a strict boundary between **the OWS reference implementation** and **MoonPay's product implementation**.
 
 ## Recommended Reading Order
 

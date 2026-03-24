@@ -1,6 +1,10 @@
 # OWS GitHub Repositories
 
-What is publicly visible today in the OWS and MoonPay GitHub surface, and what this repository deliberately avoids claiming without a directly accessible source.
+## Background Context
+
+MoonPay launched the Open Wallet Standard (OWS) as an open-source framework to provide AI agents with a universal, secure method for holding funds and signing blockchain transactions across multiple chains. Evolved from MoonPay Agents, OWS addresses fragmentation and private key exposure by storing keys in an encrypted local vault and wiping them from memory post-signing. It was developed with contributions from more than a dozen organizations, including PayPal, Circle, the Ethereum Foundation, Solana Foundation, Base, OKX, and Ripple.
+
+This document analyzes what is publicly visible today in the OWS and MoonPay GitHub surface, and what this repository deliberately avoids claiming without a directly accessible source.
 
 ## Primary OWS Repository
 
@@ -62,7 +66,7 @@ Across those sources, the publicly advertised docs include:
 
 Two review findings matter here:
 
-- `docs.openwallet.sh` currently exposes the numbered docs through `07-supported-chains.md` in its top navigation, while the repo README also includes `08-conformance-and-security.md`
+- The official site `docs.openwallet.sh` explicitly exposes numbered specification documents `01` through `07-supported-chains.md` in its navigation structure, leaving out any further documents. However, the `open-wallet-standard/core` repository's `README.md` also advertises `08-conformance-and-security.md`.
 - the repo README advertises a `Policy Engine Implementation Guide`, but that guide was not directly accessible during this review
 
 This repository therefore treats:
@@ -108,7 +112,7 @@ The org page describes it as:
 
 - "Skills for AI agents to move money — on-ramps, swaps, wallets, deposits, and more via the MoonPay CLI"
 
-The org page also shows it as public, MIT-licensed, and updated on **March 23, 2026**.
+The org page also shows it as public, MIT-licensed, and updated on **March 24, 2026**.
 
 ## What This Repository Avoids Claiming About `moonpay/skills`
 
