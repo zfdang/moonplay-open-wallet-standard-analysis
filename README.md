@@ -17,53 +17,53 @@ The detailed review notes live in [ows-public-source-review.md](docs/ows-public-
 
 ## Recommended Reading Order
 
-1. [ows-public-source-review.md](docs/ows-public-source-review.md)
-   Review findings, source-precedence rules, public-source inconsistencies, and the coverage matrix for this repository.
-
-2. [ows-overview.md](docs/ows-overview.md)
+1. [ows-overview.md](docs/ows-overview.md)
    What OWS is, the six design principles on `openwallet.sh`, what can be stated safely about its relationship to MoonPay, and which homepage claims are marketing-level versus spec-level.
 
-3. [ows-architecture.md](docs/ows-architecture.md)
+2. [ows-architecture.md](docs/ows-architecture.md)
    A synthesis of the public architecture story across the homepage, README, policy docs, access-layer docs, and key-isolation docs.
 
-4. [ows-storage-format.md](docs/ows-storage-format.md)
+3. [ows-storage-format.md](docs/ows-storage-format.md)
    The normative vault layout, wallet and API-key file structures, filesystem permissions, crypto envelope details, and backward compatibility rules.
 
-5. [ows-key-isolation-and-security.md](docs/ows-key-isolation-and-security.md)
+4. [ows-key-isolation-and-security.md](docs/ows-key-isolation-and-security.md)
    Current in-process hardening, threat model, key lifecycle, short-lived key caching, and the future subprocess-enclave profile.
 
-6. [ows-signing-interface.md](docs/ows-signing-interface.md)
+5. [ows-signing-interface.md](docs/ows-signing-interface.md)
    The normative signing operations, error model, and where the public overview page diverges from `02-signing-interface.md`.
 
-7. [ows-policy-engine.md](docs/ows-policy-engine.md)
+6. [ows-policy-engine.md](docs/ows-policy-engine.md)
    Owner versus agent mode, API-key cryptography, declarative rules, executable policies, default-deny behavior, and current file-format limits.
 
-8. [ows-agent-access-layer.md](docs/ows-agent-access-layer.md)
+7. [ows-agent-access-layer.md](docs/ows-agent-access-layer.md)
    The optional local access profiles and the interoperability constraints they must preserve.
 
-9. [ows-wallet-lifecycle.md](docs/ows-wallet-lifecycle.md)
+8. [ows-wallet-lifecycle.md](docs/ows-wallet-lifecycle.md)
    Creation, import, export, backup, recovery, deletion, rotation, and discovery.
 
-10. [ows-supported-chains.md](docs/ows-supported-chains.md)
+9. [ows-supported-chains.md](docs/ows-supported-chains.md)
     Chain families, identifiers, derivation paths, shorthand aliases, and the out-of-scope boundary around endpoint selection.
 
-11. [ows-specification-conformance-and-security.md](docs/ows-specification-conformance-and-security.md)
+10. [ows-specification-conformance-and-security.md](docs/ows-specification-conformance-and-security.md)
     Document classes, conformance targets, optional features, extension rules, and the concrete security requirements from the public conformance doc.
 
-12. [ows-sdk-cli-reference.md](docs/ows-sdk-cli-reference.md)
+11. [ows-sdk-cli-reference.md](docs/ows-sdk-cli-reference.md)
     The public reference-implementation surfaces: `ows`, `@open-wallet-standard/core`, and `open-wallet-standard`, including the current CLI and SDK drift points.
 
-13. [ows-reference-implementation-guide.md](docs/ows-reference-implementation-guide.md)
+12. [ows-reference-implementation-guide.md](docs/ows-reference-implementation-guide.md)
     How to read the quickstart and SDK docs correctly, and why they should not be treated as normative spec text.
 
-14. [ows-github-repos.md](docs/ows-github-repos.md)
+13. [ows-github-repos.md](docs/ows-github-repos.md)
     What is verifiably public in `open-wallet-standard/core` and MoonPay's GitHub organization, and which path-level claims were removed because they were not directly verifiable.
 
-15. [ows-moonpay-agents-and-skills.md](docs/ows-moonpay-agents-and-skills.md)
+14. [ows-moonpay-agents-and-skills.md](docs/ows-moonpay-agents-and-skills.md)
     MoonPay Agents, MoonPay CLI, MCP setup, published skill names, and the product-versus-standard boundary.
 
-16. [ows-x402-payments-integration.md](docs/ows-x402-payments-integration.md)
+15. [ows-x402-payments-integration.md](docs/ows-x402-payments-integration.md)
     What the public OWS and MoonPay docs actually establish about x402, paid requests, Bazaar discovery, and why payments remain outside core-spec conformance.
+
+16. [ows-public-source-review.md](docs/ows-public-source-review.md)
+    Review findings, source-precedence rules, public-source inconsistencies, and the coverage matrix for this repository.
 
 ## Coverage Map
 
