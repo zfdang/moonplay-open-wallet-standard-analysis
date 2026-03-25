@@ -52,6 +52,37 @@ Three source-boundary notes matter here:
 2. The public quickstart shows a `Signing Enclave (isolated proc)` diagram, but `05-key-isolation.md` says the current implementation model is **in-process** and treats the subprocess enclave as a future profile.
 3. `07-supported-chains.md` defines **9 chain families** including Spark, while the current CLI / SDK examples for automatically derived accounts show **8** families and do not include Spark in the example output. This file therefore uses the numbered chain doc for the full supported-family set and the SDK docs for current example behavior.
 
+## Default Runtime Shape
+
+The public OWS material does **not** require a permanent background daemon as the default architecture.
+
+The clearest current public posture is:
+
+- the common path is **in-process binding**
+- an agent, CLI, or app links against the OWS implementation directly
+- the linked OWS core reads and writes the local `~/.ows/` vault itself
+
+That is different from saying the caller should parse vault JSON files on its own. In the public model, the caller invokes OWS operations such as wallet lookup, signing, export, API-key creation, or revocation, and the OWS implementation is responsible for:
+
+- vault-file lookup and parsing
+- permission and validation checks
+- policy loading and evaluation
+- decrypt → derive → sign flow
+- zeroization and audit-log side effects
+
+So the practical reading is:
+
+- **usually yes**: no mandatory always-on service
+- **usually no**: the agent should not implement OWS by directly reading vault files itself
+
+The spec still allows other access profiles when an implementation wants them:
+
+- in-process binding
+- local subprocess
+- local service
+
+Those profiles differ in packaging and trust boundaries, but they are still expected to preserve the same OWS semantics.
+
 ## Architecture Diagram
 
 ```

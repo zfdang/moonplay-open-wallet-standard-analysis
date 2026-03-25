@@ -27,44 +27,19 @@ The credential itself determines the access tier. The owner uses the passphrase;
 
 There are no bypass flags for agent mode. If an owner wants policy-constrained access for themselves, they use an API token instead of the wallet passphrase.
 
-## API Key Cryptography
+## API Token Authorization Model
+
+This section focuses on the **authorization model** and the **request-time behavior** of API tokens. For the concrete `key.json` file layout, envelope fields, key-derivation parameters, creation-time file generation, and deletion / revocation storage effects, see [ows-storage-format.md](ows-storage-format.md).
 
 ### Token-as-Capability Model
 
 When the owner creates an API key, OWS:
 
-1. Decrypts the wallet mnemonic using the owner's passphrase
-2. Re-encrypts the mnemonic under a key derived from the API token
+1. Decrypts the wallet secret using the owner's passphrase
+2. Re-encrypts that secret under a key derived from the API token
 3. Stores the encrypted copy in the API key file
 
 The agent presents the token with each signing request; the token serves as **both authentication and decryption capability**.
-
-### Key Derivation (HKDF-SHA256)
-
-API tokens are 256-bit random values (`ows_key_<64 hex chars>`). HKDF-SHA256 derives the encryption key:
-
-```
-token = ows_key_<random 256 bits, hex-encoded>
-salt  = random 32 bytes (stored in CryptoEnvelope)
-prk   = HKDF-Extract(salt, token)
-key   = HKDF-Expand(prk, "ows-api-key-v1", 32)  →  AES-256-GCM key
-```
-
-### Key Creation Flow
-
-```
-ows key create --name "claude-agent" --wallet agent-treasury --policy spending-limit
-```
-
-1. Owner enters wallet passphrase
-2. OWS decrypts the wallet mnemonic using scrypt(passphrase)
-3. Generates random token: `T = "ows_key_" + hex(random 256 bits)`
-4. Generates random salt S
-5. Derives key: `K = HKDF-SHA256(S, T, "ows-api-key-v1", 32)`
-6. Encrypts mnemonic with K via AES-256-GCM
-7. Stores key file with `token_hash: SHA256(T)`, policy IDs, and encrypted mnemonic copy
-8. **Displays T once** — owner provisions it to the agent
-9. Zeroizes mnemonic from memory
 
 ### Agent Signing Flow
 
@@ -79,27 +54,77 @@ Agent calls: sign_transaction(wallet, chain, tx, "ows_key_a1b2c3...")
 6. Build PolicyContext (chain ID, wallet ID, API key ID, transaction context, spending context, timestamp)
 7. Evaluate all policies (AND semantics, short-circuit on first deny)
 8. If denied → return POLICY_DENIED error (key material never touched)
-9. HKDF-SHA256(salt, token) → AES key → decrypt mnemonic from key.wallet_secrets
-10. HD-derive chain-specific key
+9. HKDF-SHA256(salt, token) → AES key → decrypt wallet secret from `key.wallet_secrets`
+10. HD-derive the chain-specific key if needed
 11. Sign transaction
-12. Zeroize mnemonic and derived key
+12. Zeroize the decrypted wallet secret and derived key
 13. Return signature
 ```
 
-### Revocation
+## Policy Attachment
 
-Delete the API key file. The encrypted mnemonic copy is gone. `SHA256(T)` matches nothing. The token is useless. The original wallet and other API keys are unaffected.
+Policies are attached to **API keys, not wallets**. An API key can have multiple policies attached. All must pass (AND semantics). Evaluation short-circuits on the first denial.
 
-### Security Properties
+```bash
+# Create a policy
+ows policy create --file base-agent-limits.json
 
-| Scenario | Result |
-|----------|--------|
-| Token stolen, no disk access | Useless — encrypted key file not accessible |
-| Disk access, no token | Can't decrypt — HKDF + AES-256-GCM |
-| Token + disk access | Can decrypt, but requires bypassing OWS process entirely |
-| Owner passphrase changed | API keys unaffected (independently encrypted) |
-| API key revoked | Encrypted copy deleted — token decrypts nothing |
-| Multiple API keys | Independent encrypted copies; revoking one doesn't affect others |
+# Create an API key with wallet scope and policy attachment
+ows key create --name "claude-agent" --wallet agent-treasury --policy base-agent-limits
+# => ows_key_a1b2c3d4e5f6...  (shown once, store securely)
+```
+
+## Policy File Format
+
+Policies are JSON files stored in `~/.ows/policies/`:
+
+```json
+{
+  "id": "base-agent-limits",
+  "name": "Base Agent Safety Limits",
+  "version": 1,
+  "created_at": "2026-03-22T10:00:00Z",
+  "rules": [
+    { "type": "allowed_chains", "chain_ids": ["eip155:8453", "eip155:84532"] },
+    { "type": "expires_at", "timestamp": "2026-12-31T23:59:59Z" }
+  ],
+  "executable": null,
+  "config": null,
+  "action": "deny"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Unique policy identifier |
+| `name` | string | yes | Human-readable policy name |
+| `version` | integer | yes | Policy schema version (currently 1) |
+| `created_at` | string | yes | ISO 8601 creation timestamp |
+| `rules` | array | no | Declarative rules. Evaluated in-process. |
+| `executable` | string | no | Absolute path to a custom policy executable |
+| `config` | object | no | Static configuration passed to the executable via `PolicyContext.policy_config` |
+| `action` | string | yes | Currently `"deny"` only. Denied policies block the request. |
+
+A policy MUST have at least one of `rules` or `executable`.
+
+If `executable` is present, the public doc says it must resolve to an executable file at evaluation time.
+
+## Evaluation Order Within a Policy
+
+A policy can have both `rules` (declarative) and `executable` (custom). When both are present:
+
+1. Declarative rules evaluate first (in-process, fast)
+2. If declarative rules deny → skip executable (no subprocess spawned)
+3. If declarative rules allow → spawn executable for final verdict
+4. **Both must allow**
+
+Declarative rules act as a fast pre-filter.
+
+## Public-Source Drift On `action`
+
+The docs overview page shows a broader type where `Policy.action` may be `"deny"` or `"warn"`. The detailed numbered `03-policy-engine.md` says the current policy-file format supports `action: "deny"` only.
+
+This repository follows the numbered policy doc for file-format claims.
 
 ## Declarative Policy Rules
 
@@ -137,58 +162,6 @@ echo '<PolicyContext JSON>' | /path/to/policy-executable
 - The executable MUST write a single `PolicyResult` JSON object to stdout
 - A non-zero exit code is treated as a denial
 - Stderr is captured and may be surfaced in denial details
-
-### Evaluation Order Within a Policy
-
-A policy can have both `rules` (declarative) and `executable` (custom). When both are present:
-
-1. Declarative rules evaluate first (in-process, fast)
-2. If declarative rules deny → skip executable (no subprocess spawned)
-3. If declarative rules allow → spawn executable for final verdict
-4. **Both must allow**
-
-Declarative rules act as a fast pre-filter.
-
-## Policy File Format
-
-Policies are JSON files stored in `~/.ows/policies/`:
-
-```json
-{
-  "id": "base-agent-limits",
-  "name": "Base Agent Safety Limits",
-  "version": 1,
-  "created_at": "2026-03-22T10:00:00Z",
-  "rules": [
-    { "type": "allowed_chains", "chain_ids": ["eip155:8453", "eip155:84532"] },
-    { "type": "expires_at", "timestamp": "2026-12-31T23:59:59Z" }
-  ],
-  "executable": null,
-  "config": null,
-  "action": "deny"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | yes | Unique policy identifier |
-| `name` | string | yes | Human-readable policy name |
-| `version` | integer | yes | Policy schema version (currently 1) |
-| `created_at` | string | yes | ISO 8601 creation timestamp |
-| `rules` | array | no | Declarative rules. Evaluated in-process. |
-| `executable` | string | no | Absolute path to a custom policy executable |
-| `config` | object | no | Static configuration passed to the executable via `PolicyContext.policy_config` |
-| `action` | string | yes | Currently `"deny"` only. Denied policies block the request. |
-
-A policy MUST have at least one of `rules` or `executable`.
-
-If `executable` is present, the public doc says it must resolve to an executable file at evaluation time.
-
-## Public-Source Drift On `action`
-
-The docs overview page shows a broader type where `Policy.action` may be `"deny"` or `"warn"`. The detailed numbered `03-policy-engine.md` says the current policy-file format supports `action: "deny"` only.
-
-This repository follows the numbered policy doc for file-format claims.
 
 ## PolicyContext
 
@@ -243,19 +216,6 @@ For custom executable policies only:
 
 The **default-deny** stance ensures that policy failures are never silently bypassed.
 
-## Policy Attachment
-
-Policies are attached to **API keys, not wallets**. An API key can have multiple policies attached. All must pass (AND semantics). Evaluation short-circuits on the first denial.
-
-```bash
-# Create a policy
-ows policy create --file base-agent-limits.json
-
-# Create an API key with wallet scope and policy attachment
-ows key create --name "claude-agent" --wallet agent-treasury --policy base-agent-limits
-# => ows_key_a1b2c3d4e5f6...  (shown once, store securely)
-```
-
 ## Example: Custom Simulation Policy
 
 A Python script that simulates an EVM transaction before allowing it:
@@ -286,6 +246,17 @@ try:
 except Exception as e:
     json.dump({"allow": False, "reason": str(e)}, sys.stdout)
 ```
+
+## Security Properties
+
+| Scenario | Result |
+|----------|--------|
+| Token stolen, no disk access | Useless — encrypted key file not accessible |
+| Disk access, no token | Can't decrypt — HKDF + AES-256-GCM |
+| Token + disk access | Can decrypt, but requires bypassing OWS process entirely |
+| Owner passphrase changed | API keys unaffected (independently encrypted) |
+| API key revoked | Encrypted copy deleted — token decrypts nothing |
+| Multiple API keys | Independent encrypted copies; revoking one doesn't affect others |
 
 ## References
 

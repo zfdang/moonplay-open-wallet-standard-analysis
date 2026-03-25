@@ -4,6 +4,26 @@ How wallets are created, imported, exported, backed up, recovered, deleted, and 
 
 This document focuses on the **normative lifecycle semantics** from `06-wallet-lifecycle.md`, while also calling out places where the current reference implementation exposes additional CLI behavior.
 
+## How Lifecycle Operations Reach The Vault
+
+The lifecycle docs describe semantic operations such as create, import, export, backup, restore, delete, and discover. In the current public implementation posture, those operations are usually executed through an OWS CLI or SDK binding, not by the application manually reading and writing vault JSON files.
+
+The practical model is:
+
+- the caller invokes an OWS lifecycle operation
+- the linked OWS implementation reads or updates `~/.ows/` as needed
+- the implementation preserves validation, encryption, compatibility, audit, and cleanup behavior
+
+That distinction matters because "reading a wallet JSON file" is not the same thing as implementing the lifecycle contract. The lifecycle semantics also include behaviors such as:
+
+- secure import and export handling
+- wallet-ID and API-key-scope updates
+- audit-log side effects
+- compatibility rules for imports and exports
+- memory cleanup after secret handling
+
+The public access-layer docs do allow other deployment shapes, such as a local subprocess or local service, but the common current public posture is still an in-process implementation rather than a required always-on daemon.
+
 ## Creation
 
 ### Create from New Mnemonic
