@@ -230,6 +230,63 @@ In an API key file, each `wallet_secrets[wallet_id].ciphertext` contains an encr
 
 The important distinction from `~/.ows/wallets/*.json` is that the wallet file is encrypted under the owner's passphrase, while the API key file stores an additional encrypted copy under a key derived from the API token.
 
+### How To Read The API Key Encryption Flow
+
+At a high level, an API key JSON can be understood like this:
+
+1. The owner already has an existing wallet file.
+2. The owner unlocks that wallet with the wallet passphrase.
+3. OWS decrypts the wallet secret from the wallet file.
+4. OWS generates a random API token such as `ows_key_<64 hex chars>`.
+5. OWS generates a fresh salt for the API key envelope.
+6. OWS runs `HKDF-SHA256(token, salt, info="ows-api-key-v1", dklen=32)` to derive a 32-byte key.
+7. OWS uses that derived key with `aes-256-gcm` and the stored IV to encrypt the wallet secret again.
+8. OWS saves:
+   - `token_hash`
+   - `wallet_ids`
+   - `policy_ids`
+   - `expires_at`
+   - `wallet_secrets[wallet_id].ciphertext`
+   - `wallet_secrets[wallet_id].cipherparams.iv`
+   - `wallet_secrets[wallet_id].auth_tag`
+   - the HKDF parameters (`salt`, `info`, `dklen`)
+
+To use that API key later:
+
+1. The agent presents the same raw token.
+2. OWS computes `SHA256(token)` and finds the matching API key file.
+3. OWS checks scope, expiry, and attached policies before decryption.
+4. OWS reruns `HKDF-SHA256(...)` with the stored parameters.
+5. OWS uses the re-derived key and `aes-256-gcm` to decrypt `wallet_secrets[wallet_id].ciphertext`.
+6. OWS recovers the wallet secret, derives the chain-specific key if needed, signs, and then wipes the decrypted material from memory.
+
+For intuition, it is fine to think of this as "re-wrapping the wallet secret under the API token." The owner passphrase protects the original wallet file; the API token protects a second encrypted copy used for policy-constrained agent access.
+
+### What An Agent Request Usually Reads
+
+In the public OWS model, an agent request usually starts from a single API key file:
+
+1. OWS hashes the presented token.
+2. OWS finds the matching `~/.ows/keys/<key-id>.json`.
+3. From that file, OWS gets:
+   - the token match (`token_hash`)
+   - the wallet scope (`wallet_ids`)
+   - the policy references (`policy_ids`)
+   - the encrypted wallet-secret copy (`wallet_secrets[wallet_id]`)
+
+So for the **agent-specific secret material**, the key file is the main file that matters.
+
+But a full request typically involves more than that one file:
+
+- OWS still needs the referenced policy files from `~/.ows/policies/`
+- implementations may also look up the wallet file or wallet index for public metadata, wallet resolution, or account information
+
+So the safe mental model is:
+
+- **decryption path**: mostly driven by `key.json`
+- **full request handling**: usually `key.json` plus policy files, and sometimes wallet metadata
+
+
 ### Is There A Separate `key_type` Inside `wallet_secrets`?
 
 In the current public API key example and field list, `wallet_secrets[wallet_id]` is just a `CryptoEnvelope`. It does **not** define a separate inner field like:
@@ -294,61 +351,6 @@ If you want to delete the wallet itself:
 
 The public lifecycle document is explicit about removing the wallet ID from referencing API keys. Operationally, the corresponding `wallet_secrets[wallet_id]` entry should also be removed from those key files; otherwise an orphaned encrypted copy would remain. That storage implication is the natural consequence of the lifecycle rule, even though the public lifecycle text calls out the scope cleanup more directly than the inner map cleanup.
 
-### How To Read The API Key Encryption Flow
-
-At a high level, an API key JSON can be understood like this:
-
-1. The owner already has an existing wallet file.
-2. The owner unlocks that wallet with the wallet passphrase.
-3. OWS decrypts the wallet secret from the wallet file.
-4. OWS generates a random API token such as `ows_key_<64 hex chars>`.
-5. OWS generates a fresh salt for the API key envelope.
-6. OWS runs `HKDF-SHA256(token, salt, info="ows-api-key-v1", dklen=32)` to derive a 32-byte key.
-7. OWS uses that derived key with `aes-256-gcm` and the stored IV to encrypt the wallet secret again.
-8. OWS saves:
-   - `token_hash`
-   - `wallet_ids`
-   - `policy_ids`
-   - `expires_at`
-   - `wallet_secrets[wallet_id].ciphertext`
-   - `wallet_secrets[wallet_id].cipherparams.iv`
-   - `wallet_secrets[wallet_id].auth_tag`
-   - the HKDF parameters (`salt`, `info`, `dklen`)
-
-To use that API key later:
-
-1. The agent presents the same raw token.
-2. OWS computes `SHA256(token)` and finds the matching API key file.
-3. OWS checks scope, expiry, and attached policies before decryption.
-4. OWS reruns `HKDF-SHA256(...)` with the stored parameters.
-5. OWS uses the re-derived key and `aes-256-gcm` to decrypt `wallet_secrets[wallet_id].ciphertext`.
-6. OWS recovers the wallet secret, derives the chain-specific key if needed, signs, and then wipes the decrypted material from memory.
-
-For intuition, it is fine to think of this as "re-wrapping the wallet secret under the API token." The owner passphrase protects the original wallet file; the API token protects a second encrypted copy used for policy-constrained agent access.
-
-### What An Agent Request Usually Reads
-
-In the public OWS model, an agent request usually starts from a single API key file:
-
-1. OWS hashes the presented token.
-2. OWS finds the matching `~/.ows/keys/<key-id>.json`.
-3. From that file, OWS gets:
-   - the token match (`token_hash`)
-   - the wallet scope (`wallet_ids`)
-   - the policy references (`policy_ids`)
-   - the encrypted wallet-secret copy (`wallet_secrets[wallet_id]`)
-
-So for the **agent-specific secret material**, the key file is the main file that matters.
-
-But a full request typically involves more than that one file:
-
-- OWS still needs the referenced policy files from `~/.ows/policies/`
-- implementations may also look up the wallet file or wallet index for public metadata, wallet resolution, or account information
-
-So the safe mental model is:
-
-- **decryption path**: mostly driven by `key.json`
-- **full request handling**: usually `key.json` plus policy files, and sometimes wallet metadata
 
 ## Crypto Object
 
